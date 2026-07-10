@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net462;net6.0-windows;net8.0-windows</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>BaanLib</RootNamespace>
+    <AssemblyName>BaanLib</AssemblyName>
+
+    <!-- NuGet package metadata -->
+    <PackageId>BaanLib</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>BaanLib contributors</Authors>
+    <Description>OLE automation library for Baan/Infor LN. A .NET port of mfussenegger/baanlib (Python/win32com), compatible with .NET Framework and .NET (Windows).</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/BaanLib/BaanLib</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/BaanLib/BaanLib</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>baan;infor;infor-ln;ole;com;automation;interop</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets net462 build on machines that only have the .NET (Core) SDK installed. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <!-- Required for the `dynamic` keyword when targeting net462 with the .NET SDK. -->
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Condition="Exists('..\..\README.md')" />
+  </ItemGroup>
+
+</Project>
