@@ -1,6 +1,6 @@
 # BaanLib
 
-[![CI](https://github.com/BaanLib/BaanLib/actions/workflows/ci.yml/badge.svg)](https://github.com/BaanLib/BaanLib/actions/workflows/ci.yml)
+[![CI](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml/badge.svg)](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A .NET port of [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) — a simple
@@ -53,7 +53,7 @@ using (var b = new Baan("Baan.Application.erpln"))
 - **Windows only.** The library talks to the Baan/Infor LN OLE automation object via COM.
 - One of the following runtimes:
   - .NET Framework **4.6.2** or later
-  - .NET **6** (Windows) or **.NET 8** (Windows)
+  - .NET **6** (Windows), **.NET 8** (Windows) or **.NET 10** (Windows)
 - The Baan/Infor LN client must be installed and its `Baan.Application.*` OLE class registered
   (only required at runtime, not for building or running the unit tests).
 
