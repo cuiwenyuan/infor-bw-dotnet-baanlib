@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net462;net6.0-windows;net8.0-windows</TargetFrameworks>
+    <TargetFrameworks>net462;net6.0-windows;net8.0-windows;net10.0-windows</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -14,8 +14,8 @@
     <Authors>BaanLib contributors</Authors>
     <Description>OLE automation library for Baan/Infor LN. A .NET port of mfussenegger/baanlib (Python/win32com), compatible with .NET Framework and .NET (Windows).</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/BaanLib/BaanLib</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/BaanLib/BaanLib</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>baan;infor;infor-ln;ole;com;automation;interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
