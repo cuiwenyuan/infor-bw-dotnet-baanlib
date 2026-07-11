@@ -115,6 +115,62 @@ function extern long process(string packed)
 }
 ```
 
+## 公司号配置（BSE_COMPNR）
+
+本类库只透传 `ParseExecFunction(dllName, method)`，**本身不传递公司号**。公司号绑定在 ProgID 所指向的
+OLE 连接 / 环境上，即它由 **Baan Worktop（BW）客户端** 一侧决定，而不是在 .NET 代码里。
+
+**设置公司号的官方方式**，是在 BW 环境的 `set` 命令里使用该环境变量：
+
+```
+-set BSE_COMPNR=<compnr>
+```
+
+- **Infor ERP Baan 5.0c 及以后版本**（含 Infor LN）：写作 `-set BSE_COMPNR=200`
+- **Infor ERP Baan IVc4**：第一次出现必须写作 `"-- -set BSE_COMPNR=200"`（注意前面的 `--`）
+
+该命令放在 BW 客户端的 **环境（配置）的 command / arguments** 中。在 **BECS（BW Environment and
+Configuration Selector）** 里为每个环境注册一个 OLE 自动化名，该环境的公司号由 `BSE_COMPNR` 固定。
+
+> 官方参考 —— Infor LN 10.4 BW 安装，[set command](https://docs.infor.com/ln/10.4/en-us/lnolh/help/install/bw/in000510.html)
+
+同一位置还可使用的相关 `set` 变量：
+
+- `-set PACKAGE_COMB=<packcomb>` —— 覆盖包组合（覆盖用户数据）
+- `set USER=<username>` —— 更改启动 bshell 的用户
+
+### 方式 A —— 一个公司 = 一个 OLE 自动化名（推荐）
+
+在 BECS 中为每个公司注册独立的 OLE 自动化名，每个环境用各自的 `-set BSE_COMPNR=...` 配置公司号。
+.NET 侧只需按公司选择 ProgID：
+
+```csharp
+string progId = companyNo == 100
+    ? "Baan.Application.erpln.c100"
+    : "Baan.Application.erpln.c200";
+
+using (var b = new Baan(progId))
+{
+    b.odll_name.some.function.name("arg1", "arg2");
+}
+```
+
+### 方式 B —— 运行时切换公司（单参数模式）
+
+若不想为每个公司建环境，可在单一环境下运行，并把公司号作为第一个参数传给自己的 4GL DLL，
+由 DLL 内部先切换公司再执行逻辑：
+
+```csharp
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    // 第一个参数 = 公司号，其余为业务数据
+    var result = b.odll_name.process("200|CREATE|ORDER|1001|2026-07-11");
+}
+```
+
+> 注意：`BSE_COMPNR` 只能在 bshell 启动时设置，因此它必须在 BW 侧配置（方式 A），或在 4GL DLL 内部
+> 处理（方式 B）。在 `Baan` 对象创建之后，无法从 .NET 再设置公司号。
+
 ## 环境要求
 
 - **仅支持 Windows。** 类库通过 COM 与 Baan / Infor LN 的 OLE 自动化对象通信。

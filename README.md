@@ -121,6 +121,68 @@ function extern long process(string packed)
 }
 ```
 
+## Company Configuration (`BSE_COMPNR`)
+
+This library only forwards `ParseExecFunction(dllName, method)` — it does **not** pass a company
+number itself. The company is bound to the OLE connection / environment that the ProgID points to,
+i.e. it is decided on the **Baan Worktop (BW) client** side, not in .NET code.
+
+**The official way to set the company** is via the BW environment's `set` command using the
+environment variable:
+
+```
+-set BSE_COMPNR=<compnr>
+```
+
+- **Infor ERP Baan 5.0c and later** (including Infor LN): write `-set BSE_COMPNR=200`
+- **Infor ERP Baan IVc4**: the *first* occurrence must be written as `"-- -set BSE_COMPNR=200"`
+  (note the leading `--`)
+
+Place it in the **Environment (Configuration) command / arguments** of the BW client. In
+**BECS (BW Environment and Configuration Selector)** you register an OLE automation name per
+environment, and that environment's company is fixed by `BSE_COMPNR`.
+
+> Official reference — Infor LN 10.4 BW install, [set command](https://docs.infor.com/ln/10.4/en-us/lnolh/help/install/bw/in000510.html)
+
+Related `set` variables you can use in the same place:
+
+- `-set PACKAGE_COMB=<packcomb>` — overrides the package combination (overrides user data)
+- `set USER=<username>` — changes the user who starts the bshell
+
+### Approach A — one company = one OLE automation name (recommended)
+
+Register a separate OLE automation name per company in BECS, each environment configured with its
+own `-set BSE_COMPNR=...`. The .NET side then just picks the ProgID:
+
+```csharp
+string progId = companyNo == 100
+    ? "Baan.Application.erpln.c100"
+    : "Baan.Application.erpln.c200";
+
+using (var b = new Baan(progId))
+{
+    b.odll_name.some.function.name("arg1", "arg2");
+}
+```
+
+### Approach B — switch company at runtime (single-parameter pattern)
+
+If you do not want one environment per company, run under a single environment and pass the company
+as the first parameter to your own 4GL DLL, which switches company internally before running the
+logic:
+
+```csharp
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    // first parameter = company number, the rest is business data
+    var result = b.odll_name.process("200|CREATE|ORDER|1001|2026-07-11");
+}
+```
+
+> Note: `BSE_COMPNR` can only be set when the bshell starts, so it must be configured on the BW side
+> (Approach A) or handled inside the 4GL DLL (Approach B). It cannot be set from .NET after the
+> `Baan` object is created.
+
 ## Requirements
 
 - **Windows only.** The library talks to the Baan/Infor LN OLE automation object via COM.
