@@ -21,11 +21,20 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
     {
         private readonly dynamic _baanObject;
         private readonly string _name;
+        private readonly bool _throwOnErrorResult;
 
         internal BaanWrapper(dynamic baanObject, string name)
         {
             _baanObject = baanObject;
             _name = name;
+            _throwOnErrorResult = false;
+        }
+
+        internal BaanWrapper(dynamic baanObject, string name, bool throwOnErrorResult)
+        {
+            _baanObject = baanObject;
+            _name = name;
+            _throwOnErrorResult = throwOnErrorResult;
         }
 
         /// <summary>Gets the DLL (object) name, i.e. the first segment of the chained path.</summary>
@@ -93,7 +102,7 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
 
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
-            result = new BaanWrapper(_baanObject, _name + "." + binder.Name);
+            result = new BaanWrapper(_baanObject, _name + "." + binder.Name, _throwOnErrorResult);
             return true;
         }
 
@@ -116,6 +125,16 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
             }
 
             result = _baanObject.ReturnValue;
+
+            if (_throwOnErrorResult)
+            {
+                var parsed = BaanResult.Parse(result);
+                if (!parsed.IsSuccess)
+                {
+                    throw new BaanResultException(parsed);
+                }
+            }
+
             return true;
         }
     }

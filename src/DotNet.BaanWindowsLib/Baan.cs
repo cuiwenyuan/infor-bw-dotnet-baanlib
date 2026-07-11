@@ -21,6 +21,7 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
 
         private dynamic _baan;
         private bool _disposed;
+        private bool _throwOnErrorResult;
 
         /// <summary>
         /// Creates a new Baan/Infor LN OLE automation object for the given ProgID
@@ -77,9 +78,20 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
             set => _baan.Binary = value;
         }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether a call whose decoded return value has a non-zero
+        /// code (the <c>"code|message"</c> convention) throws <see cref="BaanResultException"/>
+        /// instead of returning the raw value. Default is <c>false</c> (non-breaking).
+        /// </summary>
+        public bool ThrowOnErrorResult
+        {
+            get => _throwOnErrorResult;
+            set => _throwOnErrorResult = value;
+        }
+
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
-            result = new BaanWrapper(_baan, binder.Name);
+            result = new BaanWrapper(_baan, binder.Name, _throwOnErrorResult);
             return true;
         }
 

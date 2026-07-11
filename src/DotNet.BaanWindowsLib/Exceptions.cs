@@ -43,4 +43,41 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
         {
         }
     }
+
+    /// <summary>
+    /// Raised when <see cref="Baan.ThrowOnErrorResult"/> is enabled and a call returns a
+    /// <c>"code|message"</c> value whose code is non-zero (i.e. not a success per the convention).
+    /// </summary>
+    public class BaanResultException : Exception
+    {
+        /// <summary>Gets the non-zero status code carried by the return value.</summary>
+        public int Code { get; }
+
+        /// <summary>
+        /// Initializes a new <see cref="BaanResultException"/> from a parsed <see cref="BaanResult"/>.
+        /// </summary>
+        public BaanResultException(BaanResult result)
+            : base(result.Message)
+        {
+            Code = result.Code;
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="BaanResultException"/> from a code and message.
+        /// </summary>
+        public BaanResultException(int code, string message)
+            : base(message)
+        {
+            Code = code;
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="BaanResultException"/> from a code, message and inner exception.
+        /// </summary>
+        public BaanResultException(int code, string message, Exception innerException)
+            : base(message, innerException)
+        {
+            Code = code;
+        }
+    }
 }

@@ -133,5 +133,82 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib.Tests
                 Assert.Throws<UnknownMethodException>(() => b.dll.unknown_method());
             }
         }
+
+        [Theory]
+        [InlineData("0|Success", 0, "Success", true)]
+        [InlineData("1|Error", 1, "Error", false)]
+        [InlineData("1", 1, "", false)]
+        [InlineData("Success", 0, "Success", true)]
+        [InlineData("", 0, "", true)]
+        public void BaanResult_Parse_DecodesConvention(
+            string input, int expectedCode, string expectedMessage, bool expectedSuccess)
+        {
+            var r = BaanResult.Parse(input);
+
+            Assert.Equal(expectedCode, r.Code);
+            Assert.Equal(expectedMessage, r.Message);
+            Assert.Equal(input, r.Raw);
+            Assert.Equal(expectedSuccess, r.IsSuccess);
+        }
+
+        [Fact]
+        public void BaanResult_Parse_Null_IsSuccess()
+        {
+            var r = BaanResult.Parse(null);
+
+            Assert.Equal(0, r.Code);
+            Assert.True(r.IsSuccess);
+        }
+
+        [Fact]
+        public void BaanResult_Parse_CustomDelimiter()
+        {
+            var r = BaanResult.Parse("2;NotFound", ';');
+
+            Assert.Equal(2, r.Code);
+            Assert.Equal("NotFound", r.Message);
+            Assert.False(r.IsSuccess);
+        }
+
+        [Fact]
+        public void ThrowOnErrorResult_DefaultFalse_ReturnsRawValue()
+        {
+            var fake = new FakeBaan { ReturnValue = "1|Error" };
+
+            using (dynamic b = new Baan("Baan.Application.erpln", fake))
+            {
+                var raw = b.odll.process("x");
+                Assert.Equal("1|Error", raw);
+            }
+        }
+
+        [Fact]
+        public void ThrowOnErrorResult_True_NonZero_ThrowsBaanResultException()
+        {
+            var fake = new FakeBaan { ReturnValue = "1|Error" };
+
+            using (dynamic b = new Baan("Baan.Application.erpln", fake))
+            {
+                b.ThrowOnErrorResult = true;
+
+                var ex = Assert.Throws<BaanResultException>(() => b.odll.process("x"));
+                Assert.Equal(1, ex.Code);
+                Assert.Equal("Error", ex.Message);
+            }
+        }
+
+        [Fact]
+        public void ThrowOnErrorResult_True_Zero_DoesNotThrow()
+        {
+            var fake = new FakeBaan { ReturnValue = "0|Success" };
+
+            using (dynamic b = new Baan("Baan.Application.erpln", fake))
+            {
+                b.ThrowOnErrorResult = true;
+
+                var raw = b.odll.process("x");
+                Assert.Equal("0|Success", raw);
+            }
+        }
     }
 }

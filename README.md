@@ -121,6 +121,42 @@ function extern long process(string packed)
 }
 ```
 
+## Return Value Convention (`"code|message"`)
+
+If your 4GL DLL returns a status string in the form `"<code>|<message>"` — for example
+`"0|Success"` or `"1|Error"` — decode it into a structured result with `BaanResult` instead of
+splitting the string by hand:
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    var raw = b.odll_name.process("200|CREATE|ORDER|1001"); // returns "0|Success"
+    var r = BaanResult.Parse(raw);
+
+    if (!r.IsSuccess)
+        Console.WriteLine($"Error {r.Code}: {r.Message}");
+}
+```
+
+`BaanResult` decodes: `"0|Success"` → `Code = 0, Message = "Success"`; `"1|Error"` →
+`Code = 1, Message = "Error"`; a bare number is treated as the code; a string without a delimiter
+is treated as a success message. The delimiter is configurable: `BaanResult.Parse(raw, ';')`.
+
+### Fail-fast with `ThrowOnErrorResult`
+
+To make a non-zero code throw automatically instead of returning the raw value, enable
+`ThrowOnErrorResult` (off by default, so existing behavior is unchanged):
+
+```csharp
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    b.ThrowOnErrorResult = true;
+    b.odll_name.process("200|CREATE|ORDER|1001"); // throws BaanResultException on a "1|..." result
+}
+```
+
 ## Company Configuration (`BSE_COMPNR`)
 
 This library only forwards `ParseExecFunction(dllName, method)` — it does **not** pass a company
@@ -243,6 +279,7 @@ public class Baan : DynamicObject, IDisposable
     public object FunctionCall { get; }         // last function call string
     public object ReturnCall   { get; }         // last return call string
     public object Binary       { get; set; }    // binary mode flag
+    public bool ThrowOnErrorResult { get; set; } // throw BaanResultException on non-zero code
 }
 
 public class BaanWrapper : DynamicObject
@@ -252,8 +289,18 @@ public class BaanWrapper : DynamicObject
     public string GetCallingMethod(params object[] args); // builds the call string
 }
 
+public readonly struct BaanResult
+{
+    public int Code { get; }        // 0 = success
+    public string Message { get; }
+    public string Raw { get; }      // original return value
+    public bool IsSuccess { get; }  // Code == 0
+    public static BaanResult Parse(object returnValue, char delimiter = '|');
+}
+
 public class UnknownDllException : Exception { }
 public class UnknownMethodException : Exception { }
+public class BaanResultException : Exception { public int Code { get; } }
 ```
 
 ## Building and testing

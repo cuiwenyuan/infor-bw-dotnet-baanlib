@@ -115,6 +115,41 @@ function extern long process(string packed)
 }
 ```
 
+## 返回值约定（"code|message"）
+
+如果你的 4GL DLL 按 `"<code>|<message>"` 形式返回状态字符串——例如 `"0|Success"` 或 `"1|Error"`——
+可用 `BaanResult` 直接解析成结构化结果，无需自己拆字符串：
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    var raw = b.odll_name.process("200|CREATE|ORDER|1001"); // 返回 "0|Success"
+    var r = BaanResult.Parse(raw);
+
+    if (!r.IsSuccess)
+        Console.WriteLine($"错误 {r.Code}: {r.Message}");
+}
+```
+
+`BaanResult` 的解析规则：`"0|Success"` → `Code = 0, Message = "Success"`；`"1|Error"` →
+`Code = 1, Message = "Error"`；纯数字当作 Code；没有分隔符的字符串当作成功消息。分隔符可配置：
+`BaanResult.Parse(raw, ';')`。
+
+### 用 ThrowOnErrorResult 实现 fail-fast
+
+若希望非 0 的 Code 直接抛异常（而不是返回原始值），开启 `ThrowOnErrorResult`
+（默认关闭，因此现有行为不变）：
+
+```csharp
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    b.ThrowOnErrorResult = true;
+    b.odll_name.process("200|CREATE|ORDER|1001"); // 返回 "1|..." 时抛出 BaanResultException
+}
+```
+
 ## 公司号配置（BSE_COMPNR）
 
 本类库只透传 `ParseExecFunction(dllName, method)`，**本身不传递公司号**。公司号绑定在 ProgID 所指向的
@@ -225,6 +260,7 @@ public class Baan : DynamicObject, IDisposable
     public object FunctionCall { get; }         // 上一次函数调用字符串
     public object ReturnCall   { get; }         // 上一次返回调用字符串
     public object Binary       { get; set; }    // 二进制模式标志
+    public bool ThrowOnErrorResult { get; set; } // 非 0 Code 时抛出 BaanResultException
 }
 
 public class BaanWrapper : DynamicObject
@@ -234,8 +270,18 @@ public class BaanWrapper : DynamicObject
     public string GetCallingMethod(params object[] args); // 拼出调用字符串
 }
 
+public readonly struct BaanResult
+{
+    public int Code { get; }        // 0 = 成功
+    public string Message { get; }
+    public string Raw { get; }      // 原始返回值
+    public bool IsSuccess { get; }  // Code == 0
+    public static BaanResult Parse(object returnValue, char delimiter = '|');
+}
+
 public class UnknownDllException : Exception { }
 public class UnknownMethodException : Exception { }
+public class BaanResultException : Exception { public int Code { get; } }
 ```
 
 ## 构建与测试
