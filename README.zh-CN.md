@@ -120,6 +120,8 @@ function extern long process(string packed)
 本类库只透传 `ParseExecFunction(dllName, method)`，**本身不传递公司号**。公司号绑定在 ProgID 所指向的
 OLE 连接 / 环境上，即它由 **Baan Worktop（BW）客户端** 一侧决定，而不是在 .NET 代码里。
 
+![Baan Company 在调用链中的绑定位置](docs/company-config-zh.svg)
+
 **设置公司号的官方方式**，是在 BW 环境的 `set` 命令里使用该环境变量：
 
 ```

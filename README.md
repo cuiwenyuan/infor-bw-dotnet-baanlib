@@ -127,6 +127,8 @@ This library only forwards `ParseExecFunction(dllName, method)` — it does **no
 number itself. The company is bound to the OLE connection / environment that the ProgID points to,
 i.e. it is decided on the **Baan Worktop (BW) client** side, not in .NET code.
 
+![Where Baan Company is bound in the call chain](docs/company-config-en.svg)
+
 **The official way to set the company** is via the BW environment's `set` command using the
 environment variable:
 
