@@ -1,4 +1,4 @@
-# BaanLib
+# Wangcaisoft.DotNet.BaanWindowsLib
 
 [![CI](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml/badge.svg)](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -17,11 +17,11 @@ baan.ParseExecFunction("odll_name", "some.function.name(\"with\", \"a\", \"few\"
 baan.Quit();
 ```
 
-…`BaanLib` lets you write it the natural way, with the DLL/object name, function path and
+…`Wangcaisoft.DotNet.BaanWindowsLib` lets you write it the natural way, with the DLL/object name, function path and
 arguments expressed as chained member access:
 
 ```csharp
-using BaanLib;
+using Wangcaisoft.DotNet.BaanWindowsLib;
 
 using (var b = new Baan("Baan.Application.erpln"))
 {
@@ -60,14 +60,14 @@ using (var b = new Baan("Baan.Application.erpln"))
 ## Installation
 
 ```bash
-dotnet add package BaanLib
+dotnet add package Wangcaisoft.DotNet.BaanWindowsLib
 ```
 
 ## How it works
 
 `Baan` derives from `System.Dynamic.DynamicObject`. Any attribute access that is not one of the
 well-known COM properties (`Timeout`, `ReturnValue`, `FunctionCall`, `ReturnCall`, `Binary`)
-starts a chain. When the chain is finally invoked, `BaanLib` builds the Baan function string
+starts a chain. When the chain is finally invoked, `Wangcaisoft.DotNet.BaanWindowsLib` builds the Baan function string
 (numbers are emitted verbatim, everything else is wrapped in double quotes) and calls
 `ParseExecFunction(dllName, methodName)`.
 
@@ -111,18 +111,18 @@ public class UnknownMethodException : Exception { }
 
 ## Building and testing
 
-You can build/test a single project or the whole solution (`BaanLib.sln`):
+You can build/test a single project or the whole solution (`DotNet.BaanWindowsLib.sln`):
 
 ```bash
 # Restore, build and test all target frameworks (via the solution)
-dotnet build BaanLib.sln -c Release
-dotnet test  BaanLib.sln -c Release
+dotnet build DotNet.BaanWindowsLib.sln -c Release
+dotnet test  DotNet.BaanWindowsLib.sln -c Release
 
 # Or target a single project / framework
-dotnet build src/BaanLib/BaanLib.csproj -c Release -f net8.0-windows
+dotnet build src/DotNet.BaanWindowsLib/DotNet.BaanWindowsLib.csproj -c Release -f net8.0-windows
 
 # Produce a NuGet package
-dotnet pack src/BaanLib/BaanLib.csproj -c Release
+dotnet pack src/DotNet.BaanWindowsLib/DotNet.BaanWindowsLib.csproj -c Release
 ```
 
 The unit tests use an in-memory fake of the OLE object, so they run without a real Baan/Infor LN

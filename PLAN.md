@@ -42,18 +42,18 @@ infor-bw-dotnet-baanlib/          (repo root)
 ├── LICENSE                       (MIT, full text)
 ├── README.md                     (English; mirrors upstream + .NET usage)
 ├── PLAN.md                       (this file)
-├── BaanLib.sln                   (classic .sln — understood by .NET 8 SDK)
+├── DotNet.BaanWindowsLib.sln                   (classic .sln — understood by .NET 8 SDK)
 ├── .github/
 │   └── workflows/ci.yml          (build + test on windows-latest, .NET 6/8/10)
 ├── src/
-│   └── BaanLib/
-│       ├── BaanLib.csproj        (multi-targeted, NuGet metadata)
+│   └── DotNet.BaanWindowsLib/
+│       ├── DotNet.BaanWindowsLib.csproj        (multi-targeted, NuGet metadata)
 │       ├── Baan.cs               (Baan : DynamicObject, IDisposable)
 │       ├── BaanWrapper.cs        (BaanWrapper : DynamicObject)
 │       └── Exceptions.cs         (UnknownDllException, UnknownMethodException)
 └── tests/
-    └── BaanLib.Tests/
-        ├── BaanLib.Tests.csproj
+    └── DotNet.BaanWindowsLib.Tests/
+        ├── DotNet.BaanWindowsLib.Tests.csproj
         ├── FakeBaan.cs           (test double: Timeout/ParseExecFunction/Error/ReturnValue/...)
         └── BaanTests.cs          (mirror of upstream tests.py)
 ```
@@ -61,7 +61,7 @@ infor-bw-dotnet-baanlib/          (repo root)
 ## API surface (semantic parity with upstream)
 
 ```csharp
-namespace BaanLib
+namespace Wangcaisoft.DotNet.BaanWindowsLib
 {
     public class Baan : DynamicObject, IDisposable
     {
@@ -100,6 +100,17 @@ namespace BaanLib
 
 ## Changelog
 
+- **2026-07-11 (d)** — Naming split correction: the **NuGet package / assembly / namespaces** are
+  `Wangcaisoft.DotNet.BaanWindowsLib`, while the **on-disk directories, `.sln` and `.csproj` filenames**
+  are `DotNet.BaanWindowsLib` (the `Wangcaisoft.` prefix is dropped from file names). The `.sln`, CI,
+  README and this PLAN tree were updated accordingly.
+- **2026-07-11 (c)** — Renamed the repository directories and solution: `src/BaanLib` →
+  `src/DotNet.BaanWindowsLib`, `tests/BaanLib.Tests` → `tests/DotNet.BaanWindowsLib.Tests`,
+  `BaanLib.sln` → `DotNet.BaanWindowsLib.sln`, and the `.csproj` files renamed to match their folders.
+- **2026-07-11 (b)** — Renamed the NuGet package / assembly / namespaces from `BaanLib` to
+  `Wangcaisoft.DotNet.BaanWindowsLib` (`PackageId`/`AssemblyName`/`RootNamespace` in the lib csproj; source
+  `namespace` declarations; test `using`/`RootNamespace`; README install/usage refs; added a
+  `dotnet pack` step to CI). Repository URL unchanged (`cuiwenyuan/infor-bw-dotnet-baanlib`).
 - **2026-07-11** — Added `net10.0-windows` to both projects; CI now also installs the .NET 10 SDK;
   repository URLs updated to `cuiwenyuan/infor-bw-dotnet-baanlib`.
 - **2026-07-10** — Initial implementation: multi-targeted library, xUnit suite, CI, MIT license.

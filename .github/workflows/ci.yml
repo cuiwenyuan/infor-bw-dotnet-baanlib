@@ -22,7 +22,10 @@ jobs:
             10.0.x
 
       - name: Build library
-        run: dotnet build src/BaanLib/BaanLib.csproj -c Release
+        run: dotnet build src/DotNet.BaanWindowsLib/DotNet.BaanWindowsLib.csproj -c Release
 
       - name: Test
-        run: dotnet test tests/BaanLib.Tests/BaanLib.Tests.csproj -c Release
+        run: dotnet test tests/DotNet.BaanWindowsLib.Tests/DotNet.BaanWindowsLib.Tests.csproj -c Release
+
+      - name: Pack NuGet package
+        run: dotnet pack src/DotNet.BaanWindowsLib/DotNet.BaanWindowsLib.csproj -c Release

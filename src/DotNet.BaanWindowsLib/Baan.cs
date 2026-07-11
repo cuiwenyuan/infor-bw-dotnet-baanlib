@@ -2,7 +2,7 @@ using System;
 using System.Dynamic;
 using System.Runtime.InteropServices;
 
-namespace BaanLib
+namespace Wangcaisoft.DotNet.BaanWindowsLib
 {
     /// <summary>
     /// A simple wrapper around the Baan/Infor LN OLE automation object

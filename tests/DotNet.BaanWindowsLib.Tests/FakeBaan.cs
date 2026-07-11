@@ -1,6 +1,6 @@
 using System;
 
-namespace BaanLib.Tests
+namespace Wangcaisoft.DotNet.BaanWindowsLib.Tests
 {
     /// <summary>
     /// A lightweight in-memory stand-in for the Baan/Infor LN OLE automation object, used so the

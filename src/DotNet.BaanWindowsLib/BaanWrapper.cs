@@ -4,7 +4,7 @@ using System.Dynamic;
 using System.Globalization;
 using System.Linq;
 
-namespace BaanLib
+namespace Wangcaisoft.DotNet.BaanWindowsLib
 {
     /// <summary>
     /// Wraps a single chained attribute path (for example

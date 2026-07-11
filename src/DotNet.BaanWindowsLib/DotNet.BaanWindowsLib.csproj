@@ -5,13 +5,13 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
-    <RootNamespace>BaanLib</RootNamespace>
-    <AssemblyName>BaanLib</AssemblyName>
+    <RootNamespace>Wangcaisoft.DotNet.BaanWindowsLib</RootNamespace>
+    <AssemblyName>Wangcaisoft.DotNet.BaanWindowsLib</AssemblyName>
 
     <!-- NuGet package metadata -->
-    <PackageId>BaanLib</PackageId>
+    <PackageId>Wangcaisoft.DotNet.BaanWindowsLib</PackageId>
     <Version>0.1.0</Version>
-    <Authors>BaanLib contributors</Authors>
+    <Authors>Wangcaisoft</Authors>
     <Description>OLE automation library for Baan/Infor LN. A .NET port of mfussenegger/baanlib (Python/win32com), compatible with .NET Framework and .NET (Windows).</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib</PackageProjectUrl>

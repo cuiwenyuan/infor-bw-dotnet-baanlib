@@ -1,8 +1,8 @@
 using System;
-using BaanLib;
+using Wangcaisoft.DotNet.BaanWindowsLib;
 using Xunit;
 
-namespace BaanLib.Tests
+namespace Wangcaisoft.DotNet.BaanWindowsLib.Tests
 {
     public class BaanTests
     {

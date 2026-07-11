@@ -6,7 +6,7 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <IsPackable>false</IsPackable>
-    <RootNamespace>BaanLib.Tests</RootNamespace>
+    <RootNamespace>Wangcaisoft.DotNet.BaanWindowsLib.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\BaanLib\BaanLib.csproj" />
+    <ProjectReference Include="..\..\src\DotNet.BaanWindowsLib\DotNet.BaanWindowsLib.csproj" />
   </ItemGroup>
 
 </Project>

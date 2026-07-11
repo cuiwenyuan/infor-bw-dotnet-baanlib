@@ -1,6 +1,6 @@
 using System;
 
-namespace BaanLib
+namespace Wangcaisoft.DotNet.BaanWindowsLib
 {
     /// <summary>
     /// Raised when the underlying Baan/Infor LN OLE automation object reports that the
