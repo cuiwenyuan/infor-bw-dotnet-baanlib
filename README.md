@@ -33,6 +33,41 @@ using (var b = new Baan("Baan.Application.erpln"))
 }
 ```
 
+## Use Cases
+
+This library is designed for integrating a .NET application (Web API, Windows Service,
+desktop client, scheduled job, etc.) with **Infor LN (formerly Baan) ERP**. In Infor LN / Baan
+you develop your business logic as a **4GL DLL (object)** and expose its functions through the
+OLE automation object. From .NET you can then call those DLL functions directly — no manual OLE
+call-string building, no COM plumbing.
+
+## Typical Scenarios
+
+- Trigger Infor LN business actions (create order, post, status change…) from an external system.
+- Batch data integration / interface sync, driven from the .NET side.
+- Orchestrate multiple DLL-function calls from .NET into a cross-system workflow.
+
+## Quick Start
+
+```bash
+dotnet add package Wangcaisoft.DotNet.BaanWindowsLib
+```
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+// Connect to the Infor LN / Baan OLE automation object
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    // DLL/object name, function path and arguments are expressed as chained member access
+    b.odll_name.some.function.name("with", "a", "few", "arguments");
+
+    int var = 1;
+    string foo = "test";
+    b.odll_name.some.function.name(var, foo);
+}
+```
+
 To further reduce typing, the API can also be used like this:
 
 ```csharp
@@ -45,6 +80,42 @@ using (var b = new Baan("Baan.Application.erpln"))
     put("sessioncode", "fieldname2", "value2");
 
     f.end.session("sessioncode");
+}
+```
+
+## Single-Parameter Simplification Pattern
+
+When a 4GL DLL function has many or frequently-changing parameters, pack the *action + data* into
+**a single string argument** and decompose it inside the DLL function to run the relevant logic.
+This keeps the .NET call site stable while the ERP-side logic can evolve without changing the
+interface signature.
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    // Single parameter: action and data packed with a delimiter
+    var result = b.odll_name.process("CREATE|ORDER|1001|2026-07-11");
+}
+```
+
+Corresponding Infor LN / Baan 4GL DLL side (illustrative):
+
+```4gl
+function extern long process(string packed)
+{
+    string action(10), entity(10), key(20), dt(20)
+    long   ret
+
+    action = substr$(packed, 1, pos(packed, "|") - 1)
+    packed = substr$(packed, pos(packed, "|") + 1)
+    entity = substr$(packed, 1, pos(packed, "|") - 1)
+    | ... keep decomposing and execute the matching logic
+    if (action = "CREATE") {
+        ret = dal.create(entity, key, dt)
+    }
+    return(ret)
 }
 ```
 
