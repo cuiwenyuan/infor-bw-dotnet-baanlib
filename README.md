@@ -5,9 +5,9 @@
 
 > 🌐 Language / 语言: [English](README.md) · [中文](README.zh-CN.md)
 
-A .NET port of [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) — a simple
-wrapper around the Baan/Infor LN OLE automation object (`Baan.Application.*`) that makes OLE
-automation easier to use from .NET.
+An enhanced and extended .NET port of [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib)
+— a wrapper around the Baan/Infor LN OLE automation object (`Baan.Application.*`) that adds a more
+natural .NET API plus several productivity enhancements.
 
 Instead of having to build the call string by hand:
 
@@ -34,6 +34,21 @@ using (var b = new Baan("Baan.Application.erpln"))
     b.odll_name.some.function.name(var, foo);
 }
 ```
+
+## About this enhanced .NET port
+
+`Wangcaisoft.DotNet.BaanWindowsLib` is **not** a line-by-line translation of
+[mfussenegger/baanlib](https://github.com/mfussenegger/baanlib). It is an **enhanced and extended
+.NET port**: it keeps the original's simple OLE-automation model and API semantics, while adding
+.NET-idiomatic productivity features on top:
+
+- **Multi-targeting** — runs on .NET Framework 4.6.2+, and .NET 6 / 8 / 10 (Windows).
+- **Structured return values** — `BaanResult` decodes `"code|message"` status strings.
+- **Fail-fast option** — `ThrowOnErrorResult` throws `BaanResultException` on a non-zero code.
+- **Single-parameter pattern** — pack action + data into one string, decompose on the ERP side.
+- **Bilingual documentation** and **GitHub Actions CI**.
+
+The original Baan/LN OLE behavior (`ParseExecFunction`, `Error` codes, etc.) is preserved exactly.
 
 ## Use Cases
 

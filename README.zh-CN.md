@@ -5,8 +5,9 @@
 
 > 🌐 Language / 语言: [English](README.md) · [中文](README.zh-CN.md)
 
-[mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) 的 .NET 移植版本——对 Baan / Infor LN
-的 OLE 自动化对象（`Baan.Application.*`）做了轻量封装，让你可以用更自然的 .NET 代码调用 ERP 中的业务逻辑。
+[mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) 的 **.NET 移植增强扩展版本** —— 对 Baan / Infor LN
+的 OLE 自动化对象（`Baan.Application.*`）做了轻量封装，并**在原版基础上增加了更符合 .NET 习惯的增强功能**，
+让你可以用更自然的 .NET 代码调用 ERP 中的业务逻辑。
 
 不用再手工拼装调用字符串：
 
@@ -32,6 +33,19 @@ using (var b = new Baan("Baan.Application.erpln"))
     b.odll_name.some.function.name(var, foo);
 }
 ```
+
+## 关于本移植增强版
+
+`Wangcaisoft.DotNet.BaanWindowsLib` 并非 [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) 的逐行翻译，
+而是一个 **.NET 移植增强扩展版本**：在保留原版简洁的 OLE 自动化模型与 API 语义的同时，增加了符合 .NET 习惯的生产力特性：
+
+- **多目标框架** —— 可运行于 .NET Framework 4.6.2+ 及 .NET 6 / 8 / 10（Windows）。
+- **结构化返回值** —— `BaanResult` 解析 `"code|message"` 状态字符串。
+- **快速失败选项** —— `ThrowOnErrorResult` 在非 0 Code 时抛出 `BaanResultException`。
+- **单参数调用模式** —— 将动作与数据打包为一个字符串，在 ERP 侧拆解执行。
+- **中英双语文档** 与 **GitHub Actions CI**。
+
+原版 Baan/LN 的 OLE 行为（`ParseExecFunction`、`Error` 错误码等）保持完全一致。
 
 ## 用途
 
