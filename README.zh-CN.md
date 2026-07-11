@@ -3,6 +3,8 @@
 [![CI](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml/badge.svg)](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml)
 [![许可证: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+> 🌐 Language / 语言: [English](README.md) · [中文](README.zh-CN.md)
+
 [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) 的 .NET 移植版本——对 Baan / Infor LN
 的 OLE 自动化对象（`Baan.Application.*`）做了轻量封装，让你可以用更自然的 .NET 代码调用 ERP 中的业务逻辑。
 
@@ -121,6 +123,11 @@ function extern long process(string packed)
   - .NET **6**（Windows）、**.NET 8**（Windows）或 **.NET 10**（Windows）
 - 运行时所在的机器需安装 Baan / Infor LN 客户端，并注册 `Baan.Application.*` OLE 类
   （仅运行时需要，构建与运行单元测试不要求安装）。
+
+## 使用限制
+
+- **仅支持 Windows 平台。** 本类库通过 COM 与 Baan / Infor LN 的 OLE 自动化对象（`Baan.Application.*`）通信，该能力仅在 Windows 上可用。
+- **仅适用于本地部署版（On-premise），Infor LN Cloud 不适用。** 本类库依赖 **Baan Worktop（BW）客户端** 提供的 `Baan.Application.*` OLE 自动化对象。**Infor LN Cloud（云端多租户部署）不提供、也不支持 BW 客户端**，因此 `Baan.Application.*` 这个 OLE 类在云端不可用。**对于 LN Cloud 的集成，请改用 Infor ION 或 LN 的 SOAP / REST Web Service。**
 
 ## 安装
 

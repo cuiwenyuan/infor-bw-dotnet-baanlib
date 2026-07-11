@@ -3,6 +3,8 @@
 [![CI](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml/badge.svg)](https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+> 🌐 Language / 语言: [English](README.md) · [中文](README.zh-CN.md)
+
 A .NET port of [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) — a simple
 wrapper around the Baan/Infor LN OLE automation object (`Baan.Application.*`) that makes OLE
 automation easier to use from .NET.
@@ -127,6 +129,16 @@ function extern long process(string packed)
   - .NET **6** (Windows), **.NET 8** (Windows) or **.NET 10** (Windows)
 - The Baan/Infor LN client must be installed and its `Baan.Application.*` OLE class registered
   (only required at runtime, not for building or running the unit tests).
+
+## Limitations
+
+- **Windows only.** The library talks to the Baan/Infor LN OLE automation object
+  (`Baan.Application.*`) through COM, which is only available on Windows.
+- **On-premise / local deployment only — Infor LN Cloud is NOT supported.** The library depends on
+  the **Baan Worktop (BW) client**, which provides the `Baan.Application.*` OLE automation object.
+  **Infor LN Cloud** (the multi-tenant cloud deployment) does **not** ship or support the BW client,
+  so the `Baan.Application.*` OLE class is unavailable there. For LN Cloud integration, use Infor ION
+  or the LN SOAP / REST web services instead.
 
 ## Installation
 
