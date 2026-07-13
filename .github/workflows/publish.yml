@@ -1,0 +1,37 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*'   # e.g. v0.1.0  ->  package version 0.1.0
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore DotNet.BaanWindowsLib.sln
+
+      - name: Build
+        run: dotnet build DotNet.BaanWindowsLib.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test DotNet.BaanWindowsLib.sln -c Release --no-build
+
+      - name: Pack
+        # Version follows the git tag (strip the leading "v").
+        run: dotnet pack src/DotNet.BaanWindowsLib/DotNet.BaanWindowsLib.csproj -c Release --no-build -p:Version=${GITHUB_REF_NAME#v} -o ./artifacts
+
+      - name: Push to NuGet.org
+        run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
