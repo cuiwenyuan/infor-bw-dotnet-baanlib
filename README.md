@@ -46,6 +46,8 @@ using (var b = new Baan("Baan.Application.erpln"))
 - **Structured return values** — `BaanResult` decodes `"code|message"` status strings.
 - **Fail-fast option** — `ThrowOnErrorResult` throws `BaanResultException` on a non-zero code.
 - **Single-parameter pattern** — pack action + data into one string, decompose on the ERP side.
+- **Resilience helpers (optional)** — `BaanResilienceHelper` for RPC recovery, instance retries
+  and zombie `bw` cleanup in long-running hosts.
 - **Bilingual documentation** and **GitHub Actions CI**.
 
 The original Baan/LN OLE behavior (`ParseExecFunction`, `Error` codes, etc.) is preserved exactly.
@@ -169,6 +171,103 @@ using (var b = new Baan("Baan.Application.erpln"))
 {
     b.ThrowOnErrorResult = true;
     b.odll_name.process("200|CREATE|ORDER|1001"); // throws BaanResultException on a "1|..." result
+}
+```
+
+## Error Handling & Resilience
+
+### Capturing server exception details — `BaanComException`
+
+When a call fails at the COM layer (for example `ParseExecFunction` throws a `COMException`),
+the library does **not** lose the failure context. `BaanWrapper` catches the `COMException`,
+safely reads back any server-supplied diagnostic text (`ReturnValue` / `ReturnCall`) and rethrows
+it as a `BaanComException`. This exception keeps everything needed to diagnose the problem:
+
+| Property | Meaning |
+| -------- | ------- |
+| `HResult` (base) | Original COM `HResult` (e.g. `0x800706BA`), so you can match known RPC failure codes. |
+| `DllName` | The DLL/object name being invoked. |
+| `Method` | The method being invoked. |
+| `ServerMessage` | Any server-supplied diagnostic text recovered after the failure (may be empty). |
+| `InnerException` | The original `COMException`. |
+
+```csharp
+try
+{
+    using var b = new Baan("Baan.Application.erpln");
+    b.ThrowOnErrorResult = true;
+    b.odll_name.process("200|CREATE|ORDER|1001");
+}
+catch (BaanComException ex)
+{
+    Console.WriteLine($"Call {ex.DllName}.{ex.Method} failed (0x{ex.HResult:X8}): {ex.Message}");
+    if (!string.IsNullOrEmpty(ex.ServerMessage))
+        Console.WriteLine($"Server message: {ex.ServerMessage}");
+}
+```
+
+### Optional resilience helpers — `BaanResilienceHelper`
+
+`BaanResilienceHelper` is a **standalone, optional** static class. The core `Baan` wrapper does
+**not** use it automatically — you wire it in from your own code. It holds higher-level,
+production-oriented recovery logic that would be out of place inside a dependency-free OLE wrapper.
+
+| Method | Signature | Description |
+| ------ | --------- | ----------- |
+| `IsRpcFailure` | `bool IsRpcFailure(Exception ex)` | Returns `true` if `ex` is an RPC/connectivity failure (`0x800706BA`, `0x800706BE`, `0x80010108`) rather than a genuine Baan application error. |
+| `CheckServerAvailability` | `BaanServerStatus CheckServerAvailability(string progId)` | Probes the environment: resolves the ProgID, checks the Windows RPC service (`RpcSs`), counts running `bw` processes. Never throws. |
+| `EnsureRpcRunning` | `void EnsureRpcRunning()` | Starts the Windows RPC service (`RpcSs`) if it is not already running. Never throws. |
+| `KillZombieBwProcesses` | `int KillZombieBwProcesses(int threshold = 10, int maxToKill = 5)` | Kills `bw` processes once their count exceeds `threshold` (stops at `maxToKill`). Intended for a supervised watchdog. Never throws. |
+| `CreateInstanceWithRetry` | `object CreateInstanceWithRetry(string progId, int maxRetries = 3, int initialDelayMs = 1000)` | Creates the OLE object with retry + exponential backoff; on an RPC failure it tries to recover the RPC service and retries. Throws `COMException` if all attempts fail. |
+
+`BaanServerStatus` exposes `ProgIdResolved`, `RpcRunning`, `BwProcessCount`, `Message`, plus a
+convenience property `IsAvailable` (`ProgIdResolved && RpcRunning`).
+
+**When to use**
+
+Reach for `BaanResilienceHelper` in long-running / server-side hosts where the Baan client is
+shared across many calls and a transient RPC failure should not abort the whole process:
+
+- A **Windows Service** / **Web API (ASP.NET)** host that calls Baan on (almost) every request.
+- A **scheduled job / batch runner** that issues hundreds of calls and must survive a transient
+  RPC blip.
+- A **watchdog / supervisor** process that cleans up accumulated zombie `bw` processes.
+
+**When NOT to use** (or only use parts of it):
+
+- You run on **Infor LN Cloud** — there is no BW client / RPC at all (and the whole library is
+  unsupported there).
+- You make a **single, short-lived call** in a throwaway script — `new Baan(progId)` is enough.
+- You want recovery to be invisible to the caller — these helpers are explicit by design, so you
+  decide *when* and *how* to recover.
+- The `Baan.Application.*` OLE class is not registered on the machine — the helpers only report
+  "ProgID not resolved"; they cannot create what does not exist.
+
+**Example**
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+string progId = "Baan.Application.erpln";
+
+// 1) Probe the environment (non-intrusive, never throws).
+var status = BaanResilienceHelper.CheckServerAvailability(progId);
+if (!status.IsAvailable)
+    Console.WriteLine($"Baan not ready: {status.Message}");
+
+// 2) Create the OLE object with automatic retry on RPC failure.
+try
+{
+    object ole = BaanResilienceHelper.CreateInstanceWithRetry(progId, maxRetries: 3);
+    using dynamic b = new Baan(progId, ole);
+    var raw = b.odll_name.process("200|CREATE|ORDER|1001");
+    var r = BaanResult.Parse(raw);
+    Console.WriteLine(r.IsSuccess ? "OK" : $"Error {r.Code}: {r.Message}");
+}
+catch (COMException ex) when (BaanResilienceHelper.IsRpcFailure(ex))
+{
+    // Transient RPC failure even after retries: surface a 503 / retry later.
+    Console.WriteLine($"RPC failure after retries: {ex.Message}");
 }
 ```
 
@@ -316,6 +415,34 @@ public readonly struct BaanResult
 public class UnknownDllException : Exception { }
 public class UnknownMethodException : Exception { }
 public class BaanResultException : Exception { public int Code { get; } }
+
+// Raised when a call fails at the COM layer; preserves HResult, DllName, Method, ServerMessage.
+public class BaanComException : Exception
+{
+    public string DllName { get; }       // DLL/object name being invoked
+    public string Method { get; }        // method being invoked
+    public string ServerMessage { get; } // server diagnostic text (may be empty)
+    // base HResult carries the original COM HResult
+}
+
+// Optional, standalone resilience helpers (NOT used by Baan automatically).
+public static class BaanResilienceHelper
+{
+    public static bool IsRpcFailure(Exception ex);
+    public static BaanServerStatus CheckServerAvailability(string progId);
+    public static void EnsureRpcRunning();
+    public static int KillZombieBwProcesses(int threshold = 10, int maxToKill = 5);
+    public static object CreateInstanceWithRetry(string progId, int maxRetries = 3, int initialDelayMs = 1000);
+
+    public readonly struct BaanServerStatus
+    {
+        public bool ProgIdResolved { get; }
+        public bool RpcRunning { get; }
+        public int BwProcessCount { get; }
+        public string Message { get; }
+        public bool IsAvailable { get; }   // ProgIdResolved && RpcRunning
+    }
+}
 ```
 
 ## Building and testing

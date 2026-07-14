@@ -27,13 +27,20 @@ examples/
     └── DotNet.BaanWindowsLib.Examples.WebApi.NetCore         # ASP.NET Core Minimal API
 ```
 
-Each example demonstrates two patterns / 每个示例都演示两种模式：
+Each example demonstrates three patterns / 每个示例都演示三种模式：
 
 1. **Single-parameter call + `BaanResult`** — pack "action + data" into one string, parse the
    `"<code>|<message>"` return value.
    **单参数调用 + `BaanResult`** —— 把"动作+数据"打包成一个字符串，解析 `"<code>|<message>"` 返回值。
 2. **Session handling (`ottstpapihand` / stpapi)** — put fields into a standard session, then end it.
    **会话处理（`ottstpapihand` / stpapi）** —— 逐个字段写入标准会话，最后结束会话。
+3. **Resilience (optional, `BaanResilienceHelper`)** — before connecting, probe the environment
+   with `CheckServerAvailability` and create the OLE object with `CreateInstanceWithRetry`
+   (auto-recovers the RPC service and retries on a transient RPC failure); RPC failures are
+   distinguished in the error handler via `IsRpcFailure`.
+   **弹性容错（可选，`BaanResilienceHelper`）** —— 连接前用 `CheckServerAvailability` 探测环境，
+   并用 `CreateInstanceWithRetry` 创建 OLE 对象（RPC 故障时自动恢复 RPC 服务并重试）；错误处理里
+   通过 `IsRpcFailure` 区分 RPC 故障。
 
 ## Target Frameworks / 目标框架
 
@@ -94,3 +101,8 @@ Endpoints / 端点：
 - The dynamic call requires the variable to be declared as `dynamic` (e.g. `dynamic baan = new Baan(...)`),
   otherwise the chained member access will not compile.
   动态调用要求变量声明为 `dynamic`（如 `dynamic baan = new Baan(...)`），否则链式成员访问无法编译。
+- `BaanResilienceHelper` is **optional** — the core `Baan` wrapper does not depend on it. The
+  examples show how to wire it in for long-running / server-side hosts; for a single short-lived
+  call `new Baan(progId)` is sufficient. See the README for "When to use / When NOT to use".
+  `BaanResilienceHelper` 是**可选**的——核心 `Baan` 包装并不依赖它。示例展示了如何在长时间运行 /
+  服务端宿主中接线；若只是单次短时调用，`new Baan(progId)` 已足够。详见 README 的"何时使用 / 不适用场景"。

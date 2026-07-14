@@ -18,9 +18,16 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib.Examples.Console.NetCore
 
             try
             {
-                // 建立连接。若本机未安装/未注册 BW 客户端，此处会抛出 COMException。
+                // 弹性演示（可选）：先探测环境，再用带重试的方式创建 OLE 对象。
                 // 变量必须声明为 dynamic，DynamicObject 才能拦截链式成员访问。
-                using (dynamic baan = new Baan(progId))
+                var status = BaanResilienceHelper.CheckServerAvailability(progId);
+                WriteLine($"环境探测：{status.Message}（ProgID={status.ProgIdResolved}, RPC={status.RpcRunning}, bw 进程={status.BwProcessCount}）");
+
+                // CreateInstanceWithRetry 在 RPC 失败时会自动恢复 RPC 服务并重试；
+                // 全部失败才抛出 COMException。这里用较小的重试参数便于本地体验。
+                object ole = BaanResilienceHelper.CreateInstanceWithRetry(progId, maxRetries: 2, initialDelayMs: 200);
+
+                using (dynamic baan = new Baan(progId, ole))
                 {
                     WriteLine($"已连接到 OLE 自动化对象：{progId}");
 
@@ -54,6 +61,15 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib.Examples.Console.NetCore
                     object endResult = f.end.session("sessioncode");
                     WriteLine($"end.session 返回：{endResult}");
                 }
+            }
+            catch (COMException ex) when (BaanResilienceHelper.IsRpcFailure(ex))
+            {
+                // RPC/连接类故障：即便重试后仍失败，通常说明 BW 客户端或 Windows RPC 服务不可用。
+                ForegroundColor = ConsoleColor.Yellow;
+                WriteLine("⚠ RPC/连接故障：Baan 客户端或 Windows RPC 服务不可用。");
+                WriteLine($"  原因：{ex.Message}");
+                WriteLine("  可尝试 BaanResilienceHelper.EnsureRpcRunning() / KillZombieBwProcesses() 进行恢复。");
+                ResetColor();
             }
             catch (COMException ex)
             {

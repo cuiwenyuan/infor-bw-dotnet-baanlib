@@ -3,6 +3,38 @@ using Wangcaisoft.DotNet.BaanWindowsLib;
 
 const string DefaultProgId = "Baan.Application.erpln";
 
+// 弹性连接工厂（可选）：先探测环境，再用带重试的方式创建 OLE 对象。
+// 把 BaanResilienceHelper 显式接线进来，由调用方决定何时/如何恢复。
+static dynamic CreateResilientBaan(string progId)
+{
+    var status = BaanResilienceHelper.CheckServerAvailability(progId);
+    if (!status.IsAvailable)
+    {
+        // 探测未通过：显式抛出，交由下方的 COMException 处理返回 503。
+        throw new COMException($"Baan 环境探测未通过：{status.Message}");
+    }
+
+    // CreateInstanceWithRetry 在 RPC 失败时自动恢复 RPC 服务并重试；全部失败才抛 COMException。
+    // 这里用较小的重试参数便于本地体验。
+    object ole = BaanResilienceHelper.CreateInstanceWithRetry(progId, maxRetries: 2, initialDelayMs: 200);
+    return new Baan(progId, ole);
+}
+
+// 统一的 RPC/连接故障响应（503）。
+static IResult RpcFailureResult(COMException ex)
+{
+    bool rpc = BaanResilienceHelper.IsRpcFailure(ex);
+    return Results.Json(new
+    {
+        error = rpc
+            ? "Baan RPC/连接故障：已重试仍失败，可能是 BW 客户端或 Windows RPC 服务不可用。"
+            : "无法连接到 Baan/Infor LN 的 OLE 自动化对象。",
+        reason = ex.Message,
+        hint = "请确认已安装 Baan Worktop (BW) 客户端并注册了对应的 OLE 自动化类；" +
+               "若为 RPC 故障，可调用 BaanResilienceHelper.EnsureRpcRunning() / KillZombieBwProcesses() 进行恢复。"
+    }, statusCode: StatusCodes.Status503ServiceUnavailable);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
@@ -15,7 +47,7 @@ app.MapGet("/api/baan/process", (string? payload, string? progId) =>
 
     try
     {
-        using dynamic baan = new Baan(progId);
+        using dynamic baan = CreateResilientBaan(progId);
         object raw = baan.zdalmain.process(payload);
         BaanResult result = BaanResult.Parse(raw);
         return Results.Ok(new
@@ -28,12 +60,7 @@ app.MapGet("/api/baan/process", (string? payload, string? progId) =>
     }
     catch (COMException ex)
     {
-        return Results.Json(new
-        {
-            error = "无法连接到 Baan/Infor LN 的 OLE 自动化对象。",
-            reason = ex.Message,
-            hint = "请确认已安装 Baan Worktop (BW) 客户端并注册了对应的 OLE 自动化类。"
-        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        return RpcFailureResult(ex);
     }
     catch (UnknownDllException ex)
     {
@@ -59,7 +86,7 @@ app.MapGet("/api/baan/session", (string? sessionCode, string? progId) =>
 
     try
     {
-        using dynamic baan = new Baan(progId);
+        using dynamic baan = CreateResilientBaan(progId);
         dynamic f = baan.ottstpapihand;
         var put = f.stpapi.put.field;
 
@@ -71,12 +98,7 @@ app.MapGet("/api/baan/session", (string? sessionCode, string? progId) =>
     }
     catch (COMException ex)
     {
-        return Results.Json(new
-        {
-            error = "无法连接到 Baan/Infor LN 的 OLE 自动化对象。",
-            reason = ex.Message,
-            hint = "请确认已安装 Baan Worktop (BW) 客户端并注册了对应的 OLE 自动化类。"
-        }, statusCode: StatusCodes.Status503ServiceUnavailable);
+        return RpcFailureResult(ex);
     }
 });
 

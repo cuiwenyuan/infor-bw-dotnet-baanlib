@@ -43,6 +43,7 @@ using (var b = new Baan("Baan.Application.erpln"))
 - **结构化返回值** —— `BaanResult` 解析 `"code|message"` 状态字符串。
 - **快速失败选项** —— `ThrowOnErrorResult` 在非 0 Code 时抛出 `BaanResultException`。
 - **单参数调用模式** —— 将动作与数据打包为一个字符串，在 ERP 侧拆解执行。
+- **弹性辅助类（可选）** —— `BaanResilienceHelper` 提供 RPC 恢复、实例重试与僵尸 `bw` 进程清理，适用于长时间运行的宿主。
 - **中英双语文档** 与 **GitHub Actions CI**。
 
 原版 Baan/LN 的 OLE 行为（`ParseExecFunction`、`Error` 错误码等）保持完全一致。
@@ -161,6 +162,97 @@ using (var b = new Baan("Baan.Application.erpln"))
 {
     b.ThrowOnErrorResult = true;
     b.odll_name.process("200|CREATE|ORDER|1001"); // 返回 "1|..." 时抛出 BaanResultException
+}
+```
+
+## 错误处理与弹性（容错）
+
+### 捕获服务器异常详情 —— BaanComException
+
+当调用在 COM 层失败（例如 `ParseExecFunction` 抛出 `COMException`）时，类库**不会丢失失败上下文**。
+`BaanWrapper` 会捕获 `COMException`，安全地回读服务器可能写入的诊断信息（`ReturnValue` / `ReturnCall`），
+并以 `BaanComException` 重新抛出。该异常保留了诊断所需的一切：
+
+| 属性 | 含义 |
+| ---- | ---- |
+| `HResult`（基类） | 原始 COM `HResult`（如 `0x800706BA`），便于匹配已知的 RPC 失败码。 |
+| `DllName` | 正在调用的 DLL/对象名。 |
+| `Method` | 正在调用的方法。 |
+| `ServerMessage` | 失败后尽力恢复到的服务器诊断文本（可能为空）。 |
+| `InnerException` | 原始 `COMException`。 |
+
+```csharp
+try
+{
+    using var b = new Baan("Baan.Application.erpln");
+    b.ThrowOnErrorResult = true;
+    b.odll_name.process("200|CREATE|ORDER|1001");
+}
+catch (BaanComException ex)
+{
+    Console.WriteLine($"调用 {ex.DllName}.{ex.Method} 失败 (0x{ex.HResult:X8})：{ex.Message}");
+    if (!string.IsNullOrEmpty(ex.ServerMessage))
+        Console.WriteLine($"服务器消息：{ex.ServerMessage}");
+}
+```
+
+### 可选的弹性辅助类 —— BaanResilienceHelper
+
+`BaanResilienceHelper` 是一个**独立、可选**的静态类。核心的 `Baan` 包装**不会**自动使用它——需要你在
+自己的代码中手动接线。它封装了更高层、面向生产的恢复逻辑，这部分内容若放进零依赖的 OLE 包装里并不合适。
+
+| 方法 | 签名 | 说明 |
+| ---- | ---- | ---- |
+| `IsRpcFailure` | `bool IsRpcFailure(Exception ex)` | 判断 `ex` 是否为 RPC/连接类故障（`0x800706BA`、`0x800706BE`、`0x80010108`），而不是真正的 Baan 业务错误。 |
+| `CheckServerAvailability` | `BaanServerStatus CheckServerAvailability(string progId)` | 探测环境：解析 ProgID、检查 Windows RPC 服务（`RpcSs`）、统计运行的 `bw` 进程数。永不抛异常。 |
+| `EnsureRpcRunning` | `void EnsureRpcRunning()` | 若 Windows RPC 服务（`RpcSs`）未运行则启动它。永不抛异常。 |
+| `KillZombieBwProcesses` | `int KillZombieBwProcesses(int threshold = 10, int maxToKill = 5)` | `bw` 进程数超过 `threshold` 时清理（最多 `maxToKill` 个），用于受监管的看门狗。永不抛异常。 |
+| `CreateInstanceWithRetry` | `object CreateInstanceWithRetry(string progId, int maxRetries = 3, int initialDelayMs = 1000)` | 带重试与指数退避地创建 OLE 对象；RPC 失败时尝试恢复 RPC 服务并重试。全部失败则抛出 `COMException`。 |
+
+`BaanServerStatus` 包含 `ProgIdResolved`、`RpcRunning`、`BwProcessCount`、`Message`，以及便捷属性
+`IsAvailable`（`ProgIdResolved && RpcRunning`）。
+
+**何时使用**
+
+在长时间运行 / 服务端宿主中，Baan 客户端在多次调用间共享，瞬时的 RPC 故障不应导致整个进程崩溃，此时使用
+`BaanResilienceHelper`：
+
+- **Windows 服务** / **Web API（ASP.NET）** 宿主，几乎每次请求都要调用 Baan。
+- **定时任务 / 批处理** 需要发起成百上千次调用，必须能扛过一次瞬时的 RPC 抖动。
+- **看门狗 / 监管进程**，用于清理堆积的僵尸 `bw` 进程。
+
+**不适用场景**（或只使用其中部分方法）：
+
+- 使用 **Infor LN Cloud** —— 根本不存在 BW 客户端 / RPC（而且整个库在云端也不受支持）。
+- 在即用即弃的脚本里做**单次、短时调用** —— `new Baan(progId)` 已经足够。
+- 希望恢复逻辑对调用方“无感” —— 这些辅助类刻意做成显式调用，由你决定*何时*、*如何*恢复。
+- 机器上未注册 `Baan.Application.*` OLE 类 —— 辅助类只会报告“ProgID 未解析”，它无法凭空创建不存在的对象。
+
+**示例**
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+string progId = "Baan.Application.erpln";
+
+// 1) 探测环境（非侵入式，永不抛异常）。
+var status = BaanResilienceHelper.CheckServerAvailability(progId);
+if (!status.IsAvailable)
+    Console.WriteLine($"Baan 未就绪：{status.Message}");
+
+// 2) 创建 OLE 对象，RPC 失败时自动重试。
+try
+{
+    object ole = BaanResilienceHelper.CreateInstanceWithRetry(progId, maxRetries: 3);
+    using dynamic b = new Baan(progId, ole);
+    var raw = b.odll_name.process("200|CREATE|ORDER|1001");
+    var r = BaanResult.Parse(raw);
+    Console.WriteLine(r.IsSuccess ? "OK" : $"错误 {r.Code}：{r.Message}");
+}
+catch (COMException ex) when (BaanResilienceHelper.IsRpcFailure(ex))
+{
+    // 重试后仍是瞬时 RPC 故障：返回 503 / 稍后重试。
+    Console.WriteLine($"重试后仍 RPC 故障：{ex.Message}");
 }
 ```
 
@@ -296,6 +388,34 @@ public readonly struct BaanResult
 public class UnknownDllException : Exception { }
 public class UnknownMethodException : Exception { }
 public class BaanResultException : Exception { public int Code { get; } }
+
+// 调用在 COM 层失败时抛出；保留 HResult、DllName、Method、ServerMessage。
+public class BaanComException : Exception
+{
+    public string DllName { get; }       // 正在调用的 DLL/对象名
+    public string Method { get; }        // 正在调用的方法
+    public string ServerMessage { get; } // 服务器诊断文本（可能为空）
+    // 基类 HResult 携带原始 COM HResult
+}
+
+// 可选的独立弹性辅助类（Baan 不会自动使用）。
+public static class BaanResilienceHelper
+{
+    public static bool IsRpcFailure(Exception ex);
+    public static BaanServerStatus CheckServerAvailability(string progId);
+    public static void EnsureRpcRunning();
+    public static int KillZombieBwProcesses(int threshold = 10, int maxToKill = 5);
+    public static object CreateInstanceWithRetry(string progId, int maxRetries = 3, int initialDelayMs = 1000);
+
+    public readonly struct BaanServerStatus
+    {
+        public bool ProgIdResolved { get; }
+        public bool RpcRunning { get; }
+        public int BwProcessCount { get; }
+        public string Message { get; }
+        public bool IsAvailable { get; }   // ProgIdResolved && RpcRunning
+    }
+}
 ```
 
 ## 构建与测试
