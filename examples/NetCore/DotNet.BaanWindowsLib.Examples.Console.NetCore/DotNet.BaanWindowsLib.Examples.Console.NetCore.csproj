@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Wangcaisoft.DotNet.BaanWindowsLib.Examples.Console.NetCore</RootNamespace>
+    <AssemblyName>DotNet.BaanWindowsLib.Examples.Console.NetCore</AssemblyName>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\DotNet.BaanWindowsLib\DotNet.BaanWindowsLib.csproj" />
+  </ItemGroup>
+
+</Project>

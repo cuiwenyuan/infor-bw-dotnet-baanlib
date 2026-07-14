@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net462</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Wangcaisoft.DotNet.BaanWindowsLib.Examples.WinForms.NetFramework</RootNamespace>
+    <AssemblyName>DotNet.BaanWindowsLib.Examples.WinForms.NetFramework</AssemblyName>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <!-- net462 运行动态调用(dynamic)需要绑定重定向 -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 让 net462 在无完整 Framework 安装的本机也能解析引用程序集 -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\DotNet.BaanWindowsLib\DotNet.BaanWindowsLib.csproj" />
+  </ItemGroup>
+
+</Project>

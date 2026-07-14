@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net462</TargetFramework>
+    <RootNamespace>Wangcaisoft.DotNet.BaanWindowsLib.Examples.WebApi.NetFramework</RootNamespace>
+    <AssemblyName>DotNet.BaanWindowsLib.Examples.WebApi.NetFramework</AssemblyName>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <!-- net462 运行动态调用(dynamic)需要绑定重定向 -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- OWIN 自宿主 Web API（无需 IIS，直接控制台启动 HttpListener） -->
+    <PackageReference Include="Microsoft.AspNet.WebApi.OwinSelfHost" Version="5.3.0" />
+    <!-- 让 net462 在无完整 Framework 安装的本机也能解析引用程序集 -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\DotNet.BaanWindowsLib\DotNet.BaanWindowsLib.csproj" />
+  </ItemGroup>
+
+</Project>

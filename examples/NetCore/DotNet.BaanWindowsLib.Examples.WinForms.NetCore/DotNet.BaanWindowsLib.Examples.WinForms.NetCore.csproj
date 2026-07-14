@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Wangcaisoft.DotNet.BaanWindowsLib.Examples.WinForms.NetCore</RootNamespace>
+    <AssemblyName>DotNet.BaanWindowsLib.Examples.WinForms.NetCore</AssemblyName>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\DotNet.BaanWindowsLib\DotNet.BaanWindowsLib.csproj" />
+  </ItemGroup>
+
+</Project>
