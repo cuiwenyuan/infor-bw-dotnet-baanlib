@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace Wangcaisoft.DotNet.BaanWindowsLib.Tests
 {
@@ -21,6 +22,19 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib.Tests
         /// <summary>Error code inspected by <see cref="BaanWrapper"/> after a call (-1, -2 or 0).</summary>
         public int Error { get; set; }
 
+        /// <summary>If set, <see cref="ParseExecFunction"/> throws this exception (simulating a COM failure).</summary>
+        public Exception ParseExecException { get; set; }
+
+        /// <summary>If true, <see cref="ParseExecFunction"/> stores the method string in <see cref="ReturnValue"/>.</summary>
+        public bool EchoMethodAsReturnValue { get; set; }
+
+        /// <summary>If true, <see cref="Quit"/> throws (simulating a broken COM server on shutdown).</summary>
+        public bool ThrowOnQuit { get; set; }
+
+        /// <summary>If greater than zero, <see cref="ParseExecFunction"/> sleeps for this many milliseconds
+        /// (used to simulate a slow/hung call that holds the internal lock).</summary>
+        public int SlowParseExecMs { get; set; }
+
         public string LastDllName { get; private set; }
 
         public string LastMethod { get; private set; }
@@ -29,13 +43,33 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib.Tests
 
         public void ParseExecFunction(string dllName, string method)
         {
+            if (SlowParseExecMs > 0)
+            {
+                Thread.Sleep(SlowParseExecMs);
+            }
+
             LastDllName = dllName;
             LastMethod = method;
+
+            if (ParseExecException != null)
+            {
+                throw ParseExecException;
+            }
+
+            if (EchoMethodAsReturnValue)
+            {
+                ReturnValue = method;
+            }
         }
 
         public void Quit()
         {
             QuitCalled = true;
+
+            if (ThrowOnQuit)
+            {
+                throw new InvalidOperationException("simulated broken COM server on Quit");
+            }
         }
     }
 }

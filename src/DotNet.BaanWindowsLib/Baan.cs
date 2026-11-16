@@ -1,6 +1,7 @@
 using System;
 using System.Dynamic;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Wangcaisoft.DotNet.BaanWindowsLib
 {
@@ -14,14 +15,26 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
     /// <see cref="ReturnCall"/>, <see cref="Binary"/>) starts a chain that is finally executed
     /// when invoked, for example:
     /// <c>baan.ottstpapihand.stpapi.put.field("session", "field", "value")</c>.
+    /// <para>
+    /// All access to the underlying COM object is serialized through a dedicated lock
+    /// (<c>_syncRoot</c>) so that concurrent threads cannot interleave calls and read each
+    /// other's <c>ReturnValue</c>/<c>Error</c>. <see cref="Close"/> is fault-tolerant and uses a
+    /// bounded wait so a hung/unreachable COM server cannot deadlock a caller or leak a zombie
+    /// <c>bw</c> process.
+    /// </para>
     /// </remarks>
     public class Baan : DynamicObject, IDisposable
     {
         private const int DefaultTimeout = 3600;
 
+        // How long Close() will wait for the call lock before forcing a release. A hung COM
+        // server must never block disposal indefinitely.
+        private static readonly TimeSpan CloseTimeout = TimeSpan.FromSeconds(5);
+
         private dynamic _baan;
         private bool _disposed;
         private bool _throwOnErrorResult;
+        private readonly object _syncRoot = new object();
 
         /// <summary>
         /// Creates a new Baan/Infor LN OLE automation object for the given ProgID
@@ -58,24 +71,33 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
         /// <summary>Gets or sets the OLE automation timeout (seconds).</summary>
         public object Timeout
         {
-            get => _baan.Timeout;
-            set => _baan.Timeout = value;
+            get { lock (_syncRoot) return _baan.Timeout; }
+            set { lock (_syncRoot) _baan.Timeout = value; }
         }
 
         /// <summary>Gets the return value of the last executed function.</summary>
-        public object ReturnValue => _baan.ReturnValue;
+        public object ReturnValue
+        {
+            get { lock (_syncRoot) return _baan.ReturnValue; }
+        }
 
         /// <summary>Gets the last function call string.</summary>
-        public object FunctionCall => _baan.FunctionCall;
+        public object FunctionCall
+        {
+            get { lock (_syncRoot) return _baan.FunctionCall; }
+        }
 
         /// <summary>Gets the last return call string.</summary>
-        public object ReturnCall => _baan.ReturnCall;
+        public object ReturnCall
+        {
+            get { lock (_syncRoot) return _baan.ReturnCall; }
+        }
 
         /// <summary>Gets or sets the binary mode flag.</summary>
         public object Binary
         {
-            get => _baan.Binary;
-            set => _baan.Binary = value;
+            get { lock (_syncRoot) return _baan.Binary; }
+            set { lock (_syncRoot) _baan.Binary = value; }
         }
 
         /// <summary>
@@ -91,12 +113,15 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
 
         public override bool TryGetMember(GetMemberBinder binder, out object result)
         {
-            result = new BaanWrapper(_baan, binder.Name, _throwOnErrorResult);
+            result = new BaanWrapper(_baan, binder.Name, _throwOnErrorResult, _syncRoot);
             return true;
         }
 
         /// <summary>
-        /// Quits the underlying OLE automation object. Safe to call multiple times.
+        /// Quits the underlying OLE automation object. Safe to call multiple times and from any
+        /// thread. If the COM object cannot be reached (a hung call holds the lock, or the server
+        /// is gone), the RCW is forcibly released so no zombie <c>bw</c> process or COM reference
+        /// is leaked. Never throws.
         /// </summary>
         public void Close()
         {
@@ -105,13 +130,66 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
                 return;
             }
 
-            if (_baan != null)
+            // Bounded wait: if a call is in flight we wait briefly, but a hung server must not
+            // block disposal forever.
+            bool acquired = Monitor.TryEnter(_syncRoot, CloseTimeout);
+            try
             {
-                _baan.Quit();
-                _baan = null;
-            }
+                if (_disposed)
+                {
+                    return;
+                }
 
-            _disposed = true;
+                _disposed = true;
+                var baan = _baan;
+                _baan = null;
+
+                if (baan == null)
+                {
+                    return;
+                }
+
+                if (acquired)
+                {
+                    try
+                    {
+                        baan.Quit();
+                    }
+                    catch
+                    {
+                        // Best effort: a broken server may throw here; release the RCW below.
+                    }
+                }
+
+                // Always release the RCW so a hung/unreachable server cannot leak a 'bw' process.
+                ReleaseComObject(baan);
+            }
+            finally
+            {
+                if (acquired)
+                {
+                    Monitor.Exit(_syncRoot);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases the COM RCW for <paramref name="comObject"/> if it is a COM object. Swallows all
+        /// errors so it is always safe to call from <see cref="Close"/>.
+        /// </summary>
+        private static void ReleaseComObject(object comObject)
+        {
+            try
+            {
+                if (comObject != null && Marshal.IsComObject(comObject))
+                {
+                    Marshal.FinalReleaseComObject(comObject);
+                }
+            }
+            catch
+            {
+                // Ignore: there is nothing more we can do to release a broken RCW.
+            }
         }
 
         public void Dispose()
