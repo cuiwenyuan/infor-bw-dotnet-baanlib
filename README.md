@@ -5,6 +5,13 @@
 
 > 🌐 Language / 语言: [English](README.md) · [中文](README.zh-CN.md)
 
+> [!IMPORTANT]
+> **.NET 6 / 8 / 10 consumers: your project must use a `-windows` target framework.** This package
+> ships only `net6.0-windows`, `net8.0-windows` and `net10.0-windows` builds for modern .NET. If
+> your project targets plain `net6.0` / `net8.0` / `net10.0`, change its `<TargetFramework>` to the
+> `-windows` equivalent (e.g. `net8.0-windows`) — otherwise NuGet will refuse to reference the
+> package. See [Requirements](#requirements). (.NET Framework consumers use `net462` as usual.)
+
 An enhanced and extended .NET port of [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib)
 — a wrapper around the Baan/Infor LN OLE automation object (`Baan.Application.*`) that adds a more
 natural .NET API plus several productivity enhancements.
@@ -340,9 +347,36 @@ using (var b = new Baan("Baan.Application.erpln"))
 - **Windows only.** The library talks to the Baan/Infor LN OLE automation object via COM.
 - One of the following runtimes:
   - .NET Framework **4.6.2** or later
-  - .NET **6** (Windows), **.NET 8** (Windows) or **.NET 10** (Windows)
+  - .NET **6 / 8 / 10** — **Windows target framework required** (see below)
 - The Baan/Infor LN client must be installed and its `Baan.Application.*` OLE class registered
   (only required at runtime, not for building or running the unit tests).
+
+### ⚠️ Your project must also target `-windows` (.NET 6 / 8 / 10)
+
+The package offers **only Windows-specific target framework monikers (TFMs)** for modern .NET:
+`net6.0-windows`, `net8.0-windows`, `net10.0-windows`. A project targeting plain `net6.0`,
+`net8.0` or `net10.0` **cannot reference the package** — NuGet will report the package as
+incompatible. Change **your** project's TFM to the `-windows` variant:
+
+```xml
+<!-- Before: will NOT resolve Wangcaisoft.DotNet.BaanWindowsLib -->
+<PropertyGroup>
+  <TargetFramework>net8.0</TargetFramework>
+</PropertyGroup>
+
+<!-- After: add the -windows suffix -->
+<PropertyGroup>
+  <TargetFramework>net8.0-windows</TargetFramework>
+</PropertyGroup>
+```
+
+If you multi-target, apply the suffix to every modern .NET TFM, e.g.
+`<TargetFrameworks>net462;net8.0-windows;net10.0-windows</TargetFrameworks>`.
+
+This is required because the library calls the Baan OLE automation object through COM, which is a
+Windows-only API — the same reason the library itself is Windows-only. It is a compile/restore-time
+constraint, not something that can be waived at runtime when running on Windows.
+**.NET Framework consumers are unaffected:** keep using `net462`.
 
 ## Limitations
 

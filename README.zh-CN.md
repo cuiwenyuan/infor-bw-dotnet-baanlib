@@ -5,6 +5,12 @@
 
 > 🌐 Language / 语言: [English](README.md) · [中文](README.zh-CN.md)
 
+> [!IMPORTANT]
+> **.NET 6 / 8 / 10 使用者请注意：你的项目必须使用带 `-windows` 的目标框架。** 本包在新一代 .NET 上只提供
+> `net6.0-windows`、`net8.0-windows`、`net10.0-windows` 三个目标框架。如果你的项目用的是普通的
+> `net6.0` / `net8.0` / `net10.0`，请把 `<TargetFramework>` 改成对应的 `-windows` 版本（例如
+> `net8.0-windows`），否则 NuGet 会拒绝引用本包。详见[环境要求](#环境要求)。（.NET Framework 使用者照常用 `net462`。）
+
 [mfussenegger/baanlib](https://github.com/mfussenegger/baanlib) 的 **.NET 移植增强扩展版本** —— 对 Baan / Infor LN
 的 OLE 自动化对象（`Baan.Application.*`）做了轻量封装，并**在原版基础上增加了更符合 .NET 习惯的增强功能**，
 让你可以用更自然的 .NET 代码调用 ERP 中的业务逻辑。
@@ -319,9 +325,34 @@ using (var b = new Baan("Baan.Application.erpln"))
 - **仅支持 Windows。** 类库通过 COM 与 Baan / Infor LN 的 OLE 自动化对象通信。
 - 需要以下运行时之一：
   - .NET Framework **4.6.2** 或更高版本
-  - .NET **6**（Windows）、**.NET 8**（Windows）或 **.NET 10**（Windows）
+  - .NET **6 / 8 / 10** —— **必须使用 Windows 目标框架**（见下）
 - 运行时所在的机器需安装 Baan / Infor LN 客户端，并注册 `Baan.Application.*` OLE 类
   （仅运行时需要，构建与运行单元测试不要求安装）。
+
+### ⚠️ 你的项目也必须带 `-windows` 目标框架（.NET 6 / 8 / 10）
+
+本包在新一代 .NET 上**只提供 Windows 专用的目标框架（TFM）**：`net6.0-windows`、
+`net8.0-windows`、`net10.0-windows`。目标框架为普通 `net6.0`、`net8.0` 或 `net10.0` 的项目
+**无法引用本包** —— NuGet 会判定包不兼容。请把**你自己项目**的 TFM 改为带 `-windows` 的版本：
+
+```xml
+<!-- 修改前：无法解析 Wangcaisoft.DotNet.BaanWindowsLib -->
+<PropertyGroup>
+  <TargetFramework>net8.0</TargetFramework>
+</PropertyGroup>
+
+<!-- 修改后：加上 -windows 后缀 -->
+<PropertyGroup>
+  <TargetFramework>net8.0-windows</TargetFramework>
+</PropertyGroup>
+```
+
+如果你是多目标项目，请为每个新一代 .NET TFM 都加上后缀，例如
+`<TargetFrameworks>net462;net8.0-windows;net10.0-windows</TargetFrameworks>`。
+
+之所以必须这样，是因为本库通过 COM 调用 Baan 的 OLE 自动化对象，而 COM 是仅在 Windows 上可用的 API ——
+这也正是本库本身仅限 Windows 的原因。这是编译 / 还原阶段的约束，即使你的程序确实运行在 Windows 上也无法绕过。
+**.NET Framework 使用者不受影响：** 继续用 `net462` 即可。
 
 ## 使用限制
 
