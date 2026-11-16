@@ -1,12 +1,14 @@
 name: Publish to NuGet
 
+# Mirrors cuiwenyuan/DotNet.Util (branch Troy) -> .github/workflows/publish-nuget.yml:
+# keyless NuGet Trusted Publishing (OIDC), .slnf-scoped build/pack, explicit per-file push.
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
 
-# Least privilege: this workflow only needs to read the repo.
+# Least privilege at the workflow level; the publish job additionally requests an OIDC token.
 permissions:
   contents: read
 
@@ -17,6 +19,11 @@ env:
 jobs:
   publish:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      # Required by NuGet Trusted Publishing: lets the job request a short-lived OIDC token
+      # from GitHub, which nuget.org exchanges for a temporary (1 hour) API key.
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,15 +64,38 @@ jobs:
           Write-Host "artifacts directory contains $($files.Count) file(s):"
           $files | ForEach-Object { Write-Host ("  {0} ({1:N0} bytes)" -f $_.Name, $_.Length) }
 
+      # Trusted Publishing (keyless): GitHub issues an OIDC token for this job and nuget.org
+      # validates it against the policy configured at
+      # https://www.nuget.org/account/trustedpublishing
+      #   Repository Owner : cuiwenyuan
+      #   Repository       : infor-bw-dotnet-baanlib
+      #   Workflow File    : publish.yml          (file name only, no .github/workflows/ path)
+      #   Environment      : (leave empty — this workflow uses no GitHub environment)
+      # The policy is already in place, so no repository secret is used anywhere in this
+      # workflow. The issued API key is valid for 1 hour, hence log in right before pushing.
+      - name: NuGet login (Trusted Publishing / OIDC → temporary API key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          # nuget.org profile name (NOT the email address, NOT the GitHub user name).
+          # Must match the account that owns the Trusted Publishing policy:
+          # https://www.nuget.org/profiles/troy.cui
+          user: troy.cui
+
       # Pitfall: `dotnet nuget push "./artifacts/*.nupkg"` does NOT glob-expand a path with
       # a directory component — it treats the whole string as a literal filename and fails
       # with "File does not exist". Enumerate files explicitly and push each one.
       - name: Push packages to NuGet.org
         shell: pwsh
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          # Short-lived key minted by the OIDC login step above (valid ~1 hour).
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           $ErrorActionPreference = 'Continue'
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
+            Write-Host "::error::NuGet/login returned no API key — check the Trusted Publishing policy on nuget.org (owner/repository/workflow file must match this repo)."
+            exit 1
+          }
           $packages = @(Get-ChildItem -Path ./artifacts -Filter *.nupkg -File)
           if ($packages.Count -eq 0) {
             Write-Host "::error::no .nupkg found under ./artifacts — fix the Pack step first."
@@ -82,9 +112,13 @@ jobs:
       - name: Push symbols to NuGet.org
         shell: pwsh
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           $ErrorActionPreference = 'Continue'
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
+            Write-Host "::error::NuGet/login returned no API key — cannot push symbol packages."
+            exit 1
+          }
           $symbols = @(Get-ChildItem -Path ./artifacts -Filter *.snupkg -File)
           if ($symbols.Count -eq 0) {
             Write-Host "No .snupkg found — skipping symbol push."
