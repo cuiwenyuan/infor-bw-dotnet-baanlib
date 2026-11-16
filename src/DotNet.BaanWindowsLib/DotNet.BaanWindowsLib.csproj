@@ -10,7 +10,13 @@
 
     <!-- NuGet package metadata -->
     <PackageId>Wangcaisoft.DotNet.BaanWindowsLib</PackageId>
-    <Version>0.1.0</Version>
+    <!-- Date-based version, mirroring cuiwenyuan/DotNet.Util:
+         Version = <VersionPrefix>.<build date yyyy.MMdd>, e.g. 0.1.2026.1116.
+         Bump VersionPrefix for a semantic major/minor change; the last segment is the build date.
+         `dotnet pack` therefore always produces a new, monotonically-increasing version. -->
+    <VersionPrefix>0.1</VersionPrefix>
+    <VersionSuffix>$([System.DateTime]::Now.ToString('yyyy.MMdd'))</VersionSuffix>
+    <Version>$(VersionPrefix).$(VersionSuffix)</Version>
     <Authors>Wangcaisoft</Authors>
     <Description>OLE automation library for Baan/Infor LN. A .NET port of mfussenegger/baanlib (Python/win32com), compatible with .NET Framework and .NET (Windows).</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -19,6 +25,9 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>baan;infor;infor-ln;ole;com;automation;interop</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- Produce a symbols package (.snupkg) alongside the .nupkg for NuGet debugging. -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -27,6 +36,17 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <!-- Required for the `dynamic` keyword when targeting net462 with the .NET SDK. -->
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
+    <!-- On .NET Framework, ServiceController lives in the framework assembly System.ServiceProcess. -->
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'net462'">
+    <!-- BaanResilienceHelper uses ServiceController, which must be referenced explicitly on
+         .NET (Core) Windows targets. -->
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

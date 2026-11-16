@@ -1,0 +1,8 @@
+{
+  "solution": {
+    "path": "DotNet.BaanWindowsLib.sln",
+    "projects": [
+      "src\\DotNet.BaanWindowsLib\\DotNet.BaanWindowsLib.csproj"
+    ]
+  }
+}

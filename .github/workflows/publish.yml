@@ -3,7 +3,16 @@ name: Publish to NuGet
 on:
   push:
     tags:
-      - 'v*'   # e.g. v0.1.0  ->  package version 0.1.0
+      - 'v*'
+  workflow_dispatch:
+
+# Least privilege: this workflow only needs to read the repo.
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
 
 jobs:
   publish:
@@ -20,18 +29,71 @@ jobs:
             8.0.x
             10.0.x
 
+      # A solution filter that contains ONLY the library project (excludes the test
+      # project and the 6 example apps), so CI builds/packs just the package.
       - name: Restore
-        run: dotnet restore DotNet.BaanWindowsLib.sln
+        run: dotnet restore DotNet.BaanWindowsLib.Publish.slnf
 
+      # Build first (all TFMs compile in dependency order). Packing from a stale/missing
+      # build only reports "file not found" and hides the real compile error.
       - name: Build
-        run: dotnet build DotNet.BaanWindowsLib.sln -c Release --no-restore
+        run: dotnet build DotNet.BaanWindowsLib.Publish.slnf -c Release --no-restore
 
-      - name: Test
-        run: dotnet test DotNet.BaanWindowsLib.sln -c Release --no-build
-
+      # The version comes from the csproj (date-based: <VersionPrefix>.<yyyy.MMdd>),
+      # matching cuiwenyuan/DotNet.Util. No -p:Version override needed.
       - name: Pack
-        # Version follows the git tag (strip the leading "v").
-        run: dotnet pack src/DotNet.BaanWindowsLib/DotNet.BaanWindowsLib.csproj -c Release --no-build -p:Version=${GITHUB_REF_NAME#v} -o ./artifacts
+        run: dotnet pack DotNet.BaanWindowsLib.Publish.slnf -c Release --no-build -o ./artifacts
 
-      - name: Push to NuGet.org
-        run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      # Diagnostic: list artifacts to tell "nothing was packed" apart from
+      # "the push command is wrong" (both otherwise look like the same file-not-found).
+      - name: List artifacts
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -Path ./artifacts -File -ErrorAction SilentlyContinue)
+          if ($files.Count -eq 0) {
+            Write-Host "::error::./artifacts is empty — the Pack step produced no packages; check its log."
+            exit 1
+          }
+          Write-Host "artifacts directory contains $($files.Count) file(s):"
+          $files | ForEach-Object { Write-Host ("  {0} ({1:N0} bytes)" -f $_.Name, $_.Length) }
+
+      # Pitfall: `dotnet nuget push "./artifacts/*.nupkg"` does NOT glob-expand a path with
+      # a directory component — it treats the whole string as a literal filename and fails
+      # with "File does not exist". Enumerate files explicitly and push each one.
+      - name: Push packages to NuGet.org
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $packages = @(Get-ChildItem -Path ./artifacts -Filter *.nupkg -File)
+          if ($packages.Count -eq 0) {
+            Write-Host "::error::no .nupkg found under ./artifacts — fix the Pack step first."
+            exit 1
+          }
+          $failed = $false
+          foreach ($p in $packages) {
+            Write-Host "==> pushing $($p.Name)"
+            dotnet nuget push $p.FullName --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+          if ($failed) { Write-Host "::error::one or more packages failed to push; see the log above."; exit 1 }
+
+      - name: Push symbols to NuGet.org
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $symbols = @(Get-ChildItem -Path ./artifacts -Filter *.snupkg -File)
+          if ($symbols.Count -eq 0) {
+            Write-Host "No .snupkg found — skipping symbol push."
+            exit 0
+          }
+          $failed = $false
+          foreach ($s in $symbols) {
+            Write-Host "==> pushing symbols $($s.Name)"
+            dotnet nuget push $s.FullName --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+          if ($failed) { Write-Host "::error::one or more symbol packages failed to push; see the log above."; exit 1 }
