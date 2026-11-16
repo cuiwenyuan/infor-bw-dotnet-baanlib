@@ -24,6 +24,9 @@
     <RepositoryUrl>https://github.com/cuiwenyuan/infor-bw-dotnet-baanlib</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>baan;infor;infor-ln;ole;com;automation;interop</PackageTags>
+    <!-- Package icon shown on nuget.org and in the Visual Studio package manager.
+         Must be a 128x128 PNG embedded at the package root (see the None item below). -->
+    <PackageIcon>logo.128.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!-- Produce a symbols package (.snupkg) alongside the .nupkg for NuGet debugging. -->
     <IncludeSymbols>true</IncludeSymbols>
@@ -50,6 +53,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Embed the package icon at the package root, as required by <PackageIcon>. -->
+    <None Include="logo.128.png" Pack="true" PackagePath="\" Condition="Exists('logo.128.png')" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Condition="Exists('..\..\README.md')" />
     <None Include="..\..\README.zh-CN.md" Pack="true" PackagePath="\" Condition="Exists('..\..\README.zh-CN.md')" />
     <None Include="..\..\docs\**\*" Pack="true" PackagePath="docs" Condition="Exists('..\..\docs')" />
