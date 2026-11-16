@@ -109,6 +109,43 @@ using (var b = new Baan("Baan.Application.erpln"))
 }
 ```
 
+## Raw Call Style (`ParseExecFunction`)
+
+If you are used to the original/raw COM style — or you already build Baan function-call strings
+elsewhere (configuration, existing code, a string template) — you can skip the chained member
+access and pass the DLL name plus the complete function call straight through:
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    // DLL (4GL object) name + the complete function call, written exactly as in Baan
+    var result = b.ParseExecFunction(
+        "odll_name",
+        "some.function.name(\"with\", \"a\", \"few\", \"arguments\")");
+}
+```
+
+The second argument is passed **verbatim** — no escaping, quoting or argument formatting is
+applied, so you control the exact text sent to Baan. Both styles run through the same executor
+(`BaanInvoker`), so a raw call behaves exactly like a chained call:
+
+- calls are serialized with each other and with `Close()`;
+- `Error` `-1` / `-2` raise `UnknownDllException` / `UnknownMethodException`;
+- COM failures raise `BaanComException` with the server diagnostics preserved;
+- `ThrowOnErrorResult` is honoured.
+
+`ParseExecFunction` is a real member, so it wins over the dynamic chain and works on a
+`dynamic`-typed variable as well.
+
+### Choosing a style
+
+| Style | Example | Best for |
+| --- | --- | --- |
+| Chained (default) | `b.odll_name.some.fn("a", "b")` | Everyday code; arguments formatted for you |
+| Raw | `b.ParseExecFunction("odll_name", "some.fn(\"a\", \"b\")")` | Porting existing code; calls built dynamically or read from configuration |
+
 ## Single-Parameter Simplification Pattern
 
 When a 4GL DLL function has many or frequently-changing parameters, pack the *action + data* into
@@ -412,6 +449,10 @@ After the call it reads the OLE `Error` property:
 
 This mirrors the upstream Python implementation exactly.
 
+The raw style (`b.ParseExecFunction("dll", "fn(args)")`) bypasses the string building above and
+calls `ParseExecFunction` with your text verbatim, but uses the same executor and therefore the
+same `Error` handling, exception wrapping and locking.
+
 ## API
 
 ```csharp
@@ -419,6 +460,7 @@ public class Baan : DynamicObject, IDisposable
 {
     public Baan(string progId);                 // creates the OLE object, Timeout = 3600
     public Baan(string progId, object baan);    // wraps an existing object (testing/advanced)
+    public object ParseExecFunction(string dllName, string functionCall); // raw/original call style
     public void Close();                        // calls Quit()
     public void Dispose();                      // -> Close()
 

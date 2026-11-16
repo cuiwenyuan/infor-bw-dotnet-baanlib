@@ -70,6 +70,17 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib.Examples.Console.NetFramework
                     // 结束会话（返回值通常可忽略，这里仅打印以便观察）。
                     object endResult = f.end.session("sessioncode");
                     WriteLine($"end.session 返回：{endResult}");
+
+                    // 演示 3：原始调用风格（Raw）——跳过链式成员访问，直接把
+                    // “DLL 名 + 完整调用串”传给 ParseExecFunction，调用串原样透传。
+                    // 适合从既有代码/配置迁移；baan 是 dynamic，也能直接调用（真实成员优先于动态链）。
+                    WriteLine();
+                    WriteLine("--- 演示 3：原始调用风格 ParseExecFunction ---");
+
+                    object rawCallResult = baan.ParseExecFunction(
+                        "ottstpapihand",
+                        "stpapi.get.field(\"sessioncode\", \"fieldname1\")");
+                    WriteLine($"ParseExecFunction 返回：{rawCallResult}");
                 }
             }
             catch (COMException ex) when (BaanResilienceHelper.IsRpcFailure(ex))

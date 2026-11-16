@@ -16,6 +16,13 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
     /// when invoked, for example:
     /// <c>baan.ottstpapihand.stpapi.put.field("session", "field", "value")</c>.
     /// <para>
+    /// The original, raw call style is also supported through
+    /// <see cref="ParseExecFunction"/>: <c>baan.ParseExecFunction("odll_name", "fn(\"a\", \"b\")")</c>.
+    /// Both styles share the same executor (<see cref="BaanInvoker"/>) and therefore behave
+    /// identically. Being a real member, <see cref="ParseExecFunction"/> takes precedence over the
+    /// dynamic chain, so it can be called on a <c>dynamic</c>-typed variable.
+    /// </para>
+    /// <para>
     /// All access to the underlying COM object is serialized through a dedicated lock
     /// (<c>_syncRoot</c>) so that concurrent threads cannot interleave calls and read each
     /// other's <c>ReturnValue</c>/<c>Error</c>. <see cref="Close"/> is fault-tolerant and uses a
@@ -115,6 +122,54 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
         {
             result = new BaanWrapper(_baan, binder.Name, _throwOnErrorResult, _syncRoot);
             return true;
+        }
+
+        /// <summary>
+        /// Executes a Baan function using the original (raw) call style, passing the DLL (4GL
+        /// object) name and the full function-call text straight through to the OLE automation
+        /// object — exactly like calling <c>ParseExecFunction</c> on the COM object directly:
+        /// <code>
+        /// b.ParseExecFunction("odll_name", "some.function.name(\"with\", \"a\", \"few\", \"arguments\")");
+        /// </code>
+        /// </summary>
+        /// <param name="dllName">The DLL (4GL object) name, e.g. <c>ottstpapihand</c>.</param>
+        /// <param name="functionCall">
+        /// The complete Baan function call, e.g.
+        /// <c>stpapi.put.field("session", "field", "value")</c>. The text is passed through
+        /// verbatim — no escaping, quoting or argument formatting is applied.
+        /// </param>
+        /// <returns>The raw <c>ReturnValue</c> produced by the call.</returns>
+        /// <remarks>
+        /// This is the counterpart of the chained style (<c>b.dll.func(args)</c>) and executes
+        /// through the same engine, so it behaves identically: calls are serialized against
+        /// <see cref="Close"/>/other calls, an <c>Error</c> of -1/-2 raises
+        /// <see cref="UnknownDllException"/>/<see cref="UnknownMethodException"/>, a COM failure
+        /// raises <see cref="BaanComException"/> (with server diagnostics preserved) and
+        /// <see cref="ThrowOnErrorResult"/> is honoured.
+        /// </remarks>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="dllName"/> or <paramref name="functionCall"/> is null or empty.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">This instance has already been closed.</exception>
+        public object ParseExecFunction(string dllName, string functionCall)
+        {
+            if (string.IsNullOrEmpty(dllName))
+            {
+                throw new ArgumentException("The DLL (4GL object) name must not be null or empty.", nameof(dllName));
+            }
+
+            if (string.IsNullOrEmpty(functionCall))
+            {
+                throw new ArgumentException("The function call must not be null or empty.", nameof(functionCall));
+            }
+
+            object instance = _baan;
+            if (instance == null)
+            {
+                throw new ObjectDisposedException(nameof(Baan));
+            }
+
+            return BaanInvoker.Execute(instance, dllName, functionCall, _throwOnErrorResult, _syncRoot);
         }
 
         /// <summary>

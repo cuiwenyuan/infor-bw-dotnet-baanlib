@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Dynamic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace Wangcaisoft.DotNet.BaanWindowsLib
 {
@@ -121,91 +119,11 @@ namespace Wangcaisoft.DotNet.BaanWindowsLib
 
         public override bool TryInvoke(InvokeBinder binder, object[] args, out object result)
         {
-            result = null;
-
-            var method = GetCallingMethod(args);
-            var dllName = DllName;
-
-            // Serialize the whole "invoke + read Error + read ReturnValue" sequence so that
-            // concurrent threads cannot interleave and read each other's ReturnValue/Error.
-            lock (_syncRoot)
-            {
-                try
-                {
-                    _baanObject.ParseExecFunction(dllName, method);
-
-                    var error = (int)_baanObject.Error;
-                    if (error == -1)
-                    {
-                        throw new UnknownDllException();
-                    }
-
-                    if (error == -2)
-                    {
-                        throw new UnknownMethodException();
-                    }
-
-                    result = _baanObject.ReturnValue;
-                }
-                catch (UnknownDllException)
-                {
-                    throw;
-                }
-                catch (UnknownMethodException)
-                {
-                    throw;
-                }
-                    catch (Exception ex)
-                    {
-                        // Capture any server-supplied diagnostic text (typically ReturnValue) so the
-                        // failure context is not lost. Each read is guarded because a hung/broken COM
-                        // server may throw again, which must never mask the original exception.
-                        // An empty result is treated as "no message" and we fall back to ReturnCall.
-                        string serverMessage = SafeRead(() => Convert.ToString(_baanObject.ReturnValue));
-                        if (string.IsNullOrEmpty(serverMessage))
-                        {
-                            serverMessage = SafeRead(() => Convert.ToString(_baanObject.ReturnCall));
-                        }
-
-                        var hresult = ex is COMException comEx ? comEx.HResult : ex.HResult;
-
-                        throw new BaanComException(
-                            $"Call to {dllName}.{method} failed: {ex.Message}",
-                            hresult,
-                            dllName,
-                            method,
-                            serverMessage,
-                            ex);
-                    }
-            }
-
-            if (_throwOnErrorResult && result != null)
-            {
-                var parsed = BaanResult.Parse(result);
-                if (!parsed.IsSuccess)
-                {
-                    throw new BaanResultException(parsed);
-                }
-            }
-
+            // The actual execution (locking, Error mapping, COM-exception wrapping and the
+            // ThrowOnErrorResult policy) is shared with the raw call style, so both behave
+            // identically. See Baan.ParseExecFunction.
+            result = BaanInvoker.Execute(_baanObject, DllName, GetCallingMethod(args), _throwOnErrorResult, _syncRoot);
             return true;
-        }
-
-        /// <summary>
-        /// Runs <paramref name="reader"/> and returns its result, or <c>null</c> if it throws
-        /// (e.g. because the COM server is unreachable). Used to recover diagnostic information
-        /// after a failure without ever masking the original exception.
-        /// </summary>
-        private static T SafeRead<T>(Func<T> reader)
-        {
-            try
-            {
-                return reader();
-            }
-            catch
-            {
-                return default;
-            }
         }
     }
 }

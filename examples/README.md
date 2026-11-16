@@ -42,6 +42,13 @@ Each example demonstrates three patterns / 每个示例都演示三种模式：
    并用 `CreateInstanceWithRetry` 创建 OLE 对象（RPC 故障时自动恢复 RPC 服务并重试）；错误处理里
    通过 `IsRpcFailure` 区分 RPC 故障。
 
+The two **Console** examples additionally demonstrate the **raw call style**
+(`b.ParseExecFunction("dll", "func(\"a\", \"b\")")`) — the call text is passed through verbatim,
+which is handy when migrating existing code or when the call string is built dynamically.
+两个 **Console** 示例还额外演示了**原始调用风格**
+（`b.ParseExecFunction("dll", "func(\"a\", \"b\")")`）——调用串原样透传，适合从既有代码迁移，
+或调用串需要动态拼接时使用。
+
 ## Target Frameworks / 目标框架
 
 | Group / 组 | TFM |
@@ -101,6 +108,9 @@ Endpoints / 端点：
 - The dynamic call requires the variable to be declared as `dynamic` (e.g. `dynamic baan = new Baan(...)`),
   otherwise the chained member access will not compile.
   动态调用要求变量声明为 `dynamic`（如 `dynamic baan = new Baan(...)`），否则链式成员访问无法编译。
+- `ParseExecFunction` is a **real member** (it is not part of the dynamic chain), so the raw style
+  works on both `Baan` and `dynamic` variables.
+  `ParseExecFunction` 是**真实成员**（不属于动态链），因此原始调用风格在 `Baan` 与 `dynamic` 变量上都可直接使用。
 - `BaanResilienceHelper` is **optional** — the core `Baan` wrapper does not depend on it. The
   examples show how to wire it in for long-running / server-side hosts; for a single short-lived
   call `new Baan(progId)` is sufficient. See the README for "When to use / When NOT to use".

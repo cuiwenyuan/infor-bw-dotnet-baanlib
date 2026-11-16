@@ -102,6 +102,40 @@ using (var b = new Baan("Baan.Application.erpln"))
 }
 ```
 
+## 原始调用风格（`ParseExecFunction`）
+
+如果你习惯最原始的 COM 调用方式，或者调用串本来就在别处生成（配置文件、既有代码、字符串模板），
+可以跳过链式成员访问，直接把 DLL 名和整条函数调用文本传进去：
+
+```csharp
+using Wangcaisoft.DotNet.BaanWindowsLib;
+
+using (var b = new Baan("Baan.Application.erpln"))
+{
+    // DLL（4GL 对象）名 + 完整函数调用，按 Baan 里的写法原样传入
+    var result = b.ParseExecFunction(
+        "odll_name",
+        "some.function.name(\"with\", \"a\", \"few\", \"arguments\")");
+}
+```
+
+第二个参数**原样透传**——不做转义、不加引号、不做参数格式化，发往 Baan 的文本完全由你控制。
+两种风格共用同一个执行器（`BaanInvoker`），因此原始调用的行为与链式调用完全一致：
+
+- 与其他调用以及 `Close()` 之间串行化，不会互相串读；
+- `Error` 为 `-1` / `-2` 时抛 `UnknownDllException` / `UnknownMethodException`；
+- COM 层失败抛 `BaanComException`，保留服务器诊断信息；
+- 同样遵守 `ThrowOnErrorResult`。
+
+`ParseExecFunction` 是真实成员，优先级高于动态链，因此对 `dynamic` 变量同样可用。
+
+### 两种风格怎么选
+
+| 风格 | 示例 | 适用场景 |
+| --- | --- | --- |
+| 链式（默认） | `b.odll_name.some.fn("a", "b")` | 日常代码；参数由库自动格式化 |
+| 原始 | `b.ParseExecFunction("odll_name", "some.fn(\"a\", \"b\")")` | 迁移既有代码；调用串动态拼接或来自配置 |
+
 ## 单参数简化调用模式
 
 当 4GL DLL 函数的参数较多或经常变化时，可以把“动作 + 数据”打包成**一个字符串参数**，在 DLL 函数内部再
@@ -382,6 +416,9 @@ dotnet add package Wangcaisoft.DotNet.BaanWindowsLib
 
 这与上游 Python 实现完全一致。
 
+原始风格（`b.ParseExecFunction("dll", "fn(args)")`）跳过上面的字符串拼接，把你的文本原样交给
+`ParseExecFunction`，但走的是同一个执行器，因此 `Error` 处理、异常包装与加锁行为完全相同。
+
 ## API
 
 ```csharp
@@ -389,6 +426,7 @@ public class Baan : DynamicObject, IDisposable
 {
     public Baan(string progId);                 // 创建 OLE 对象，Timeout = 3600
     public Baan(string progId, object baan);    // 包装已有对象（测试/高级用法）
+    public object ParseExecFunction(string dllName, string functionCall); // 原始调用风格
     public void Close();                        // 调用 Quit()
     public void Dispose();                      // -> Close()
 
